@@ -54,19 +54,21 @@ export class GameEngine {
   }
 
   private setupChartControls(): void {
-    const btnCandle = document.getElementById('btn-candle')!;
-    const btnLine = document.getElementById('btn-line')!;
+    const tfButtons = [
+      { id: 'btn-tf-1m', tf: 60 as const },
+      { id: 'btn-tf-5m', tf: 300 as const },
+      { id: 'btn-tf-10m', tf: 600 as const },
+    ];
+    const allBtns = tfButtons.map(b => document.getElementById(b.id)!);
 
-    btnCandle.addEventListener('click', () => {
-      this.stockChart.setMode('candle');
-      btnCandle.classList.add('active');
-      btnLine.classList.remove('active');
-    });
-    btnLine.addEventListener('click', () => {
-      this.stockChart.setMode('line');
-      btnLine.classList.add('active');
-      btnCandle.classList.remove('active');
-    });
+    for (let i = 0; i < tfButtons.length; i++) {
+      const { tf } = tfButtons[i]!;
+      allBtns[i]!.addEventListener('click', () => {
+        this.stockChart.setTimeframe(tf);
+        allBtns.forEach(b => b.classList.remove('active'));
+        allBtns[i]!.classList.add('active');
+      });
+    }
 
     // Stock selector buttons
     const selectorEl = document.getElementById('stock-selector')!;

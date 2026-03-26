@@ -1,6 +1,10 @@
 import type { Stock, Candle } from '../game/economy/StockMarket';
 
-export type ChartMode = 'candle' | 'line';
+export type Timeframe = 60 | 300 | 600; // 1min, 5min, 10min in seconds/candles
+
+const BAR_WIDTH = 6;
+const BAR_GAP = 1;
+const BAR_STEP = BAR_WIDTH + BAR_GAP; // 7px per bar
 
 const COLORS = {
   bg: '#050510',
@@ -10,34 +14,29 @@ const COLORS = {
   bullWick: '#00aa55',
   bearBody: '#dd3333',
   bearWick: '#aa2222',
-  line: '#00ff88',
-  lineFill: 'rgba(0, 255, 136, 0.08)',
   volume: '#1a3a2a',
   volumeHigh: '#2a5a3a',
-  crosshair: '#335544',
   priceLabel: '#00ff88',
   symbolLabel: '#668877',
+  timeframeLabel: '#446666',
 };
 
 export class StockChart {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private mode: ChartMode = 'candle';
-  private animatedPrices: number[] = [];
-  private animatedCandles: { open: number; high: number; low: number; close: number; volume: number }[] = [];
-  private lerpSpeed = 0.15;
+  private timeframe: Timeframe = 60;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
   }
 
-  setMode(mode: ChartMode): void {
-    this.mode = mode;
+  setTimeframe(tf: Timeframe): void {
+    this.timeframe = tf;
   }
 
-  getMode(): ChartMode {
-    return this.mode;
+  getTimeframe(): Timeframe {
+    return this.timeframe;
   }
 
   render(stock: Stock): void {
@@ -56,80 +55,50 @@ export class StockChart {
     canvas.style.height = h + 'px';
     ctx.scale(dpr, dpr);
 
-    // Clear
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
-    const padding = { top: 20, right: 55, bottom: 40, left: 10 };
+    const padding = { top: 20, right: 55, bottom: 20, left: 6 };
     const chartW = w - padding.left - padding.right;
-    const volumeH = 30;
+    const volumeH = 25;
     const chartH = h - padding.top - padding.bottom - volumeH;
 
     if (chartW < 20 || chartH < 20) return;
 
-    if (this.mode === 'candle') {
-      this.renderCandlestick(ctx, stock, padding.left, padding.top, chartW, chartH, volumeH, w, h);
-    } else {
-      this.renderLine(ctx, stock, padding.left, padding.top, chartW, chartH, volumeH, w, h);
-    }
+    // How many bars fit in the chart area
+    const maxBars = Math.floor(chartW / BAR_STEP);
 
-    // Symbol label
-    ctx.font = 'bold 11px Courier New';
-    ctx.fillStyle = COLORS.symbolLabel;
-    ctx.fillText(`${stock.symbol} — ${stock.name}`, padding.left + 4, padding.top - 6);
+    // Get candles for the timeframe, take only what fits
+    const allCandles = stock.candles;
+    const tfCandles = allCandles.slice(-this.timeframe);
+    const visible = tfCandles.slice(-maxBars);
 
-    // Current price
-    ctx.fillStyle = COLORS.priceLabel;
-    ctx.textAlign = 'right';
-    ctx.fillText(`$${stock.price.toFixed(2)}`, w - 4, padding.top - 6);
-    ctx.textAlign = 'left';
-  }
+    if (visible.length === 0) return;
 
-  private renderCandlestick(
-    ctx: CanvasRenderingContext2D, stock: Stock,
-    x0: number, y0: number, cw: number, ch: number,
-    volumeH: number, _totalW: number, totalH: number,
-  ): void {
-    const candles = [...stock.candles, stock.currentCandle];
-    const maxCandles = Math.min(candles.length, 50);
-    const visible = candles.slice(-maxCandles);
-
-    // Animate candle values
-    while (this.animatedCandles.length < visible.length) {
-      const c = visible[this.animatedCandles.length]!;
-      this.animatedCandles.push({ ...c });
-    }
-    this.animatedCandles = this.animatedCandles.slice(-maxCandles);
-    for (let i = 0; i < visible.length; i++) {
-      const target = visible[i]!;
-      const anim = this.animatedCandles[i]!;
-      anim.open += (target.open - anim.open) * this.lerpSpeed;
-      anim.high += (target.high - anim.high) * this.lerpSpeed;
-      anim.low += (target.low - anim.low) * this.lerpSpeed;
-      anim.close += (target.close - anim.close) * this.lerpSpeed;
-      anim.volume += (target.volume - anim.volume) * this.lerpSpeed;
-    }
-
-    // Price range
+    // Price range from visible candles
     let minP = Infinity, maxP = -Infinity, maxVol = 0;
-    for (const c of this.animatedCandles) {
+    for (const c of visible) {
       minP = Math.min(minP, c.low);
       maxP = Math.max(maxP, c.high);
       maxVol = Math.max(maxVol, c.volume);
     }
+    // Add some padding to price range
     const range = maxP - minP || 1;
-    const priceToY = (p: number) => y0 + ch - ((p - minP) / range) * ch;
+    minP -= range * 0.05;
+    maxP += range * 0.05;
+    const adjRange = maxP - minP;
 
-    // Grid lines
-    this.drawGrid(ctx, x0, y0, cw, ch, minP, maxP, x0 + cw + 5);
+    const priceToY = (p: number) => padding.top + chartH - ((p - minP) / adjRange) * chartH;
 
-    // Candles
-    const candleW = Math.max(3, (cw / maxCandles) - 2);
-    const gap = cw / maxCandles;
+    // Draw grid
+    this.drawGrid(ctx, padding.left, padding.top, chartW, chartH, minP, maxP, padding.left + chartW + 5);
 
-    for (let i = 0; i < this.animatedCandles.length; i++) {
-      const c = this.animatedCandles[i]!;
-      const cx = x0 + i * gap + gap / 2;
+    // Draw candles — right-aligned (latest bar at right edge)
+    const startX = padding.left + chartW - visible.length * BAR_STEP;
+
+    for (let i = 0; i < visible.length; i++) {
+      const c = visible[i]!;
+      const cx = startX + i * BAR_STEP + BAR_WIDTH / 2;
       const isBull = c.close >= c.open;
 
       // Wick
@@ -145,80 +114,53 @@ export class StockChart {
       const bodyBot = priceToY(Math.min(c.open, c.close));
       const bodyH = Math.max(1, bodyBot - bodyTop);
       ctx.fillStyle = isBull ? COLORS.bullBody : COLORS.bearBody;
-      ctx.fillRect(cx - candleW / 2, bodyTop, candleW, bodyH);
+      ctx.fillRect(cx - BAR_WIDTH / 2, bodyTop, BAR_WIDTH, bodyH);
 
       // Volume bar
       const volH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
-      const volY = totalH - 4 - volH;
+      const volY = h - padding.bottom - volH;
       ctx.fillStyle = isBull ? COLORS.volumeHigh : COLORS.volume;
-      ctx.fillRect(cx - candleW / 2, volY, candleW, volH);
-    }
-  }
-
-  private renderLine(
-    ctx: CanvasRenderingContext2D, stock: Stock,
-    x0: number, y0: number, cw: number, ch: number,
-    volumeH: number, _totalW: number, totalH: number,
-  ): void {
-    const history = stock.history;
-    const maxPoints = Math.min(history.length, 100);
-    const visible = history.slice(-maxPoints);
-
-    // Animate
-    while (this.animatedPrices.length < visible.length) {
-      this.animatedPrices.push(visible[this.animatedPrices.length]!);
-    }
-    this.animatedPrices = this.animatedPrices.slice(-maxPoints);
-    for (let i = 0; i < visible.length; i++) {
-      this.animatedPrices[i] = this.animatedPrices[i]! + (visible[i]! - this.animatedPrices[i]!) * this.lerpSpeed;
+      ctx.fillRect(cx - BAR_WIDTH / 2, volY, BAR_WIDTH, volH);
     }
 
-    let minP = Infinity, maxP = -Infinity;
-    for (const p of this.animatedPrices) {
-      minP = Math.min(minP, p);
-      maxP = Math.max(maxP, p);
-    }
-    const range = maxP - minP || 1;
-    const priceToY = (p: number) => y0 + ch - ((p - minP) / range) * ch;
-    const gap = cw / Math.max(1, this.animatedPrices.length - 1);
-
-    this.drawGrid(ctx, x0, y0, cw, ch, minP, maxP, x0 + cw + 5);
-
-    // Fill under line
+    // Current price line
+    const curY = priceToY(stock.price);
+    ctx.strokeStyle = '#00ff8833';
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(x0, y0 + ch);
-    for (let i = 0; i < this.animatedPrices.length; i++) {
-      ctx.lineTo(x0 + i * gap, priceToY(this.animatedPrices[i]!));
-    }
-    ctx.lineTo(x0 + (this.animatedPrices.length - 1) * gap, y0 + ch);
-    ctx.closePath();
-    ctx.fillStyle = COLORS.lineFill;
-    ctx.fill();
-
-    // Line
-    ctx.beginPath();
-    for (let i = 0; i < this.animatedPrices.length; i++) {
-      const px = x0 + i * gap;
-      const py = priceToY(this.animatedPrices[i]!);
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.strokeStyle = COLORS.line;
-    ctx.lineWidth = 1.5;
+    ctx.moveTo(padding.left, curY);
+    ctx.lineTo(padding.left + chartW, curY);
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    // Volume from candles
-    const candles = [...stock.candles, stock.currentCandle];
-    const visCandles = candles.slice(-30);
-    let maxVol = 0;
-    for (const c of visCandles) maxVol = Math.max(maxVol, c.volume);
-    const vGap = cw / Math.max(1, visCandles.length);
-    for (let i = 0; i < visCandles.length; i++) {
-      const c = visCandles[i]!;
-      const volH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
-      ctx.fillStyle = c.close >= c.open ? COLORS.volumeHigh : COLORS.volume;
-      ctx.fillRect(x0 + i * vGap, totalH - 4 - volH, Math.max(2, vGap - 2), volH);
-    }
+    // Price tag on right
+    ctx.fillStyle = '#0a2a18';
+    ctx.fillRect(padding.left + chartW + 2, curY - 7, 50, 14);
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(padding.left + chartW + 2, curY - 7, 50, 14);
+    ctx.fillStyle = COLORS.priceLabel;
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText(`$${stock.price.toFixed(2)}`, padding.left + chartW + 5, curY + 3);
+
+    // Header: symbol + name + price
+    ctx.font = 'bold 11px Courier New';
+    ctx.fillStyle = COLORS.symbolLabel;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${stock.symbol} — ${stock.name}`, padding.left + 4, padding.top - 6);
+
+    ctx.fillStyle = COLORS.priceLabel;
+    ctx.textAlign = 'right';
+    ctx.fillText(`$${stock.price.toFixed(2)}`, w - 4, padding.top - 6);
+    ctx.textAlign = 'left';
+
+    // Timeframe + bar count label
+    const tfLabel = this.timeframe === 60 ? '1m' : this.timeframe === 300 ? '5m' : '10m';
+    ctx.font = '9px Courier New';
+    ctx.fillStyle = COLORS.timeframeLabel;
+    ctx.fillText(`${tfLabel} · ${visible.length} bars`, padding.left + 4, h - 4);
   }
 
   private drawGrid(
@@ -226,7 +168,7 @@ export class StockChart {
     x0: number, y0: number, cw: number, ch: number,
     minP: number, maxP: number, labelX: number,
   ): void {
-    const gridLines = 5;
+    const gridLines = 4;
     const range = maxP - minP || 1;
     ctx.font = '9px Courier New';
     ctx.textAlign = 'left';

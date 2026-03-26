@@ -12,14 +12,12 @@ export interface Stock {
   price: number;
   volatility: number;
   trend: number;
-  history: number[];
+  /** Every tick (1 second) produces one candle */
   candles: Candle[];
-  /** Current candle being formed (accumulates ticks) */
-  currentCandle: Candle;
-  ticksInCandle: number;
 }
 
-const TICKS_PER_CANDLE = 5;
+/** Max candles to retain per stock (10 minutes worth) */
+const MAX_CANDLES = 600;
 
 export class StockMarket {
   stocks: Stock[] = [];
@@ -29,10 +27,7 @@ export class StockMarket {
   constructor() {
     const init = (symbol: string, name: string, price: number, volatility: number, trend: number): Stock => ({
       symbol, name, price, volatility, trend,
-      history: [price],
       candles: [{ open: price, high: price, low: price, close: price, volume: 100 }],
-      currentCandle: { open: price, high: price, low: price, close: price, volume: 0 },
-      ticksInCandle: 0,
     });
 
     this.stocks = [
@@ -50,28 +45,20 @@ export class StockMarket {
       const random = (Math.random() - 0.5) * 2 * stock.volatility;
       const trendEffect = stock.trend;
       const change = stock.price * (random + trendEffect);
-      stock.price = Math.max(0.01, stock.price + change);
-      stock.history.push(stock.price);
-      if (stock.history.length > 200) stock.history.shift();
+      const newPrice = Math.max(0.01, stock.price + change);
 
-      // Update current candle
-      const c = stock.currentCandle;
-      c.close = stock.price;
-      c.high = Math.max(c.high, stock.price);
-      c.low = Math.min(c.low, stock.price);
-      c.volume += Math.round(50 + Math.random() * 200);
-      stock.ticksInCandle++;
+      // Each tick = 1 candle (1 second)
+      const candle: Candle = {
+        open: stock.price,
+        high: Math.max(stock.price, newPrice),
+        low: Math.min(stock.price, newPrice),
+        close: newPrice,
+        volume: Math.round(50 + Math.random() * 200),
+      };
 
-      // Close candle and start new one
-      if (stock.ticksInCandle >= TICKS_PER_CANDLE) {
-        stock.candles.push({ ...c });
-        if (stock.candles.length > 60) stock.candles.shift();
-        stock.currentCandle = {
-          open: stock.price, high: stock.price, low: stock.price,
-          close: stock.price, volume: 0,
-        };
-        stock.ticksInCandle = 0;
-      }
+      stock.price = newPrice;
+      stock.candles.push(candle);
+      if (stock.candles.length > MAX_CANDLES) stock.candles.shift();
     }
   }
 
