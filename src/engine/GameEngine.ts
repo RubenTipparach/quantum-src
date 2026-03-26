@@ -6,6 +6,17 @@ import { ConsoleOutput } from '../ui/ConsoleOutput';
 import { Sidebar } from '../ui/Sidebar';
 import { VFXSystem } from './VFXSystem';
 
+/** Check if a source line would produce output when executed */
+function isOutputLine(line: string): boolean {
+  const t = line.trim();
+  return (
+    t.includes('print(') || t.includes('print (') ||
+    t.includes('console.log(') || t.includes('console.log (') ||
+    t.includes('game.buy(') || t.includes('game.sell(') ||
+    t.includes('game.getPortfolio(')
+  );
+}
+
 export class GameEngine {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -116,8 +127,11 @@ export class GameEngine {
       return;
     }
 
-    // Execute the FULL program at once (so let/const scoping works correctly)
-    const entries = this.sandbox.executeTagged(code, this.gameState);
+    // Execute the full program in one shot (correct let/const scoping)
+    const allEntries = this.sandbox.execute(code, this.gameState);
+
+    // Split into log/result entries (shown during animation) and errors (shown at the line)
+    const outputQueue: ConsoleEntry[] = [...allEntries];
 
     this.runBtn.textContent = 'RUNNING...';
     this.runBtn.style.opacity = '0.5';
@@ -125,38 +139,26 @@ export class GameEngine {
     this.vfx.trigger('run');
 
     const speed = this.getExecutionSpeed();
-    const lines = this.editor.getLines();
-
-    // Build a queue of entries to show per line
-    // Entries with a line number get shown when the highlight reaches that line.
-    // Entries without a line number get shown at the end.
-    const pendingEntries = [...entries];
 
     this.editor.stepExecution(speed, {
-      onLine: (lineNumber, lineText) => {
+      onLine: (_lineNumber, lineText) => {
         const trimmed = lineText.trim();
+        if (trimmed === '' || trimmed.startsWith('//')) return;
 
-        // Trigger VFX based on source text
-        if (trimmed !== '' && !trimmed.startsWith('//')) {
-          this.detectVFX(trimmed);
-        }
+        // Trigger VFX
+        this.detectVFX(trimmed);
 
-        // Flush any entries tagged for this line or earlier
-        while (pendingEntries.length > 0) {
-          const next = pendingEntries[0]!;
-          if (next.line !== undefined && next.line <= lineNumber) {
-            pendingEntries.shift();
-            this.consoleOutput.append(next);
-            if (next.type === 'error') this.vfx.trigger('error');
-          } else {
-            break;
-          }
+        // If this line produces output, drain the next entry from the queue
+        if (isOutputLine(trimmed) && outputQueue.length > 0) {
+          const entry = outputQueue.shift()!;
+          this.consoleOutput.append(entry);
+          if (entry.type === 'error') this.vfx.trigger('error');
         }
       },
 
       onDone: () => {
-        // Flush any remaining entries (untagged or past last line)
-        for (const entry of pendingEntries) {
+        // Flush anything remaining (errors, final result, loop outputs, etc.)
+        for (const entry of outputQueue) {
           this.consoleOutput.append(entry);
           if (entry.type === 'error') this.vfx.trigger('error');
         }
