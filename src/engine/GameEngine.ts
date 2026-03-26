@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { GameState } from '../game/GameState';
-import { Sandbox } from '../game/programming/Sandbox';
+import { Sandbox, type ConsoleEntry } from '../game/programming/Sandbox';
 import { CodeEditor } from '../ui/CodeEditor';
 import { ConsoleOutput } from '../ui/ConsoleOutput';
 import { Sidebar } from '../ui/Sidebar';
@@ -24,33 +24,26 @@ export class GameEngine {
     this.clock = new THREE.Clock();
     this.sandbox = new Sandbox();
 
-    // Console output
     const consoleEl = document.getElementById('console-panel') as HTMLDivElement;
     this.consoleOutput = new ConsoleOutput(consoleEl);
 
-    // Clear console button
     document.getElementById('clear-console-btn')!.addEventListener('click', () => {
       this.consoleOutput.clear();
     });
 
-    // Sidebar
     const sidebarEl = document.getElementById('sidebar') as HTMLDivElement;
     this.sidebar = new Sidebar(sidebarEl, gameState, this.consoleOutput);
 
-    // Code editor
     const editorContainer = document.getElementById('editor-container') as HTMLDivElement;
     this.editor = new CodeEditor(editorContainer, (code) => this.runCode(code));
 
-    // Run button
     this.runBtn = document.getElementById('run-btn') as HTMLButtonElement;
     this.runBtn.addEventListener('click', () => {
       this.runCode(this.editor.getCode());
     });
 
-    // Mobile tab switching
     this.setupTabs();
 
-    // Three.js
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x050510);
 
@@ -82,21 +75,15 @@ export class GameEngine {
       tab.addEventListener('click', () => {
         const target = tab.dataset['tab'];
         if (!target) return;
-
         tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-
         panels.forEach(id => {
           const panel = document.getElementById(id);
           if (panel) {
-            if (id === target) {
-              panel.classList.add('active-tab');
-            } else {
-              panel.classList.remove('active-tab');
-            }
+            if (id === target) panel.classList.add('active-tab');
+            else panel.classList.remove('active-tab');
           }
         });
-
         requestAnimationFrame(() => this.onResize());
       });
     });
@@ -122,15 +109,15 @@ export class GameEngine {
     }
   }
 
-  private runCode(_code: string): void {
+  private runCode(code: string): void {
     if (this.editor.isRunning()) return;
-
     if (!this.sandbox.isReady()) {
       this.consoleOutput.appendError('Sandbox still loading...');
       return;
     }
 
-    this.sandbox.beginRun(this.gameState);
+    // Execute the FULL program at once (so let/const scoping works correctly)
+    const entries = this.sandbox.executeTagged(code, this.gameState);
 
     this.runBtn.textContent = 'RUNNING...';
     this.runBtn.style.opacity = '0.5';
@@ -138,46 +125,40 @@ export class GameEngine {
     this.vfx.trigger('run');
 
     const speed = this.getExecutionSpeed();
-    let lineBuffer: string[] = [];
+    const lines = this.editor.getLines();
+
+    // Build a queue of entries to show per line
+    // Entries with a line number get shown when the highlight reaches that line.
+    // Entries without a line number get shown at the end.
+    const pendingEntries = [...entries];
 
     this.editor.stepExecution(speed, {
-      onLine: (_lineNumber, lineText) => {
+      onLine: (lineNumber, lineText) => {
         const trimmed = lineText.trim();
 
-        if (trimmed === '' || trimmed.startsWith('//')) {
-          return;
+        // Trigger VFX based on source text
+        if (trimmed !== '' && !trimmed.startsWith('//')) {
+          this.detectVFX(trimmed);
         }
 
-        lineBuffer.push(lineText);
-        const chunk = lineBuffer.join('\n');
-
-        const result = this.sandbox.evalChunk(chunk);
-
-        if (result === 'incomplete') {
-          return;
-        }
-
-        // Detect what functions were called in this line for VFX
-        this.detectVFX(trimmed);
-
-        lineBuffer = [];
-        for (const entry of result) {
-          this.consoleOutput.append(entry);
-          if (entry.type === 'error') {
-            this.vfx.trigger('error');
+        // Flush any entries tagged for this line or earlier
+        while (pendingEntries.length > 0) {
+          const next = pendingEntries[0]!;
+          if (next.line !== undefined && next.line <= lineNumber) {
+            pendingEntries.shift();
+            this.consoleOutput.append(next);
+            if (next.type === 'error') this.vfx.trigger('error');
+          } else {
+            break;
           }
         }
       },
 
       onDone: () => {
-        if (lineBuffer.length > 0) {
-          const chunk = lineBuffer.join('\n');
-          const result = this.sandbox.evalChunk(chunk);
-          if (result !== 'incomplete') {
-            for (const entry of result) {
-              this.consoleOutput.append(entry);
-            }
-          }
+        // Flush any remaining entries (untagged or past last line)
+        for (const entry of pendingEntries) {
+          this.consoleOutput.append(entry);
+          if (entry.type === 'error') this.vfx.trigger('error');
         }
 
         this.consoleOutput.appendSystem('--- DONE ---');
@@ -189,18 +170,10 @@ export class GameEngine {
   }
 
   private detectVFX(line: string): void {
-    if (line.includes('game.buy(') || line.includes('game.buy (')) {
-      this.vfx.trigger('buy');
-    }
-    if (line.includes('game.sell(') || line.includes('game.sell (')) {
-      this.vfx.trigger('sell');
-    }
-    if (line.includes('game.getStocks(') || line.includes('game.getStocks (')) {
-      this.vfx.trigger('getStocks');
-    }
-    if (line.includes('print(') || line.includes('console.log(')) {
-      this.vfx.trigger('print');
-    }
+    if (line.includes('game.buy(')) this.vfx.trigger('buy');
+    if (line.includes('game.sell(')) this.vfx.trigger('sell');
+    if (line.includes('game.getStocks(')) this.vfx.trigger('getStocks');
+    if (line.includes('print(') || line.includes('console.log(')) this.vfx.trigger('print');
   }
 
   private setupScene(): void {
@@ -211,7 +184,6 @@ export class GameEngine {
     dirLight.position.set(3, 5, 3);
     this.scene.add(dirLight);
 
-    // Small grid floor
     const gridHelper = new THREE.GridHelper(10, 10, 0x002215, 0x001108);
     this.scene.add(gridHelper);
   }

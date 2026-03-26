@@ -4,6 +4,7 @@ import type { GameState } from '../GameState';
 export interface ConsoleEntry {
   type: 'log' | 'error' | 'system' | 'result';
   text: string;
+  line?: number;
 }
 
 export class Sandbox {
@@ -22,72 +23,82 @@ export class Sandbox {
   }
 
   /**
-   * Prepare a fresh context for a new execution run.
-   * Must be called before stepping through lines.
+   * Execute the full program at once. Each print/console.log call is tagged
+   * with the source line number so the UI can stream output during animation.
    */
-  beginRun(state: GameState): void {
-    this.rebuildContext(state);
-  }
-
-  /**
-   * Try to evaluate a chunk of accumulated code.
-   * Returns:
-   *   'incomplete' — the code is a partial statement (e.g. open brace), keep accumulating
-   *   ConsoleEntry[] — the code evaluated; here are any outputs/errors produced
-   */
-  evalChunk(code: string): 'incomplete' | ConsoleEntry[] {
-    if (!this.ctx) return [{ type: 'error', text: 'Sandbox not initialized.' }];
-
+  executeTagged(code: string, state: GameState): ConsoleEntry[] {
     this.consoleBuffer = [];
-
-    // Try to evaluate the accumulated code chunk
-    const result = this.ctx.evalCode(code, '<user>', { type: 'global' });
-    if (result.error) {
-      const errObj = this.ctx.dump(result.error);
-      result.error.dispose();
-      const errStr = String(errObj);
-
-      // Detect incomplete statements
-      if (
-        errStr.includes('unexpected end of input') ||
-        errStr.includes('Unexpected end of input') ||
-        errStr.includes('expected expression') ||
-        (errStr.includes('Unexpected token') && errStr.includes("'<eof>'"))
-      ) {
-        return 'incomplete';
-      }
-
-      this.consoleBuffer.push({ type: 'error', text: errStr });
-    } else {
-      const val = this.ctx.dump(result.value);
-      result.value.dispose();
-      if (val !== undefined) {
-        this.consoleBuffer.push({ type: 'result', text: String(val) });
-      }
-    }
-
-    return [...this.consoleBuffer];
-  }
-
-  /** Full execute (legacy, non-animated path) */
-  execute(code: string, state: GameState): ConsoleEntry[] {
-    this.consoleBuffer = [];
-    if (!this.ready || !this.ctx) {
+    if (!this.ready) {
       return [{ type: 'error', text: 'Sandbox not initialized yet.' }];
     }
+
     this.rebuildContext(state);
-    const result = this.ctx.evalCode(code);
+
+    // Inject __line tracking: wrap print/console.log to capture line info.
+    // We instrument the code by prepending a line-tracking helper and wrapping
+    // the user code so that QuickJS Error().stack gives us line numbers.
+    const wrappedCode = `
+var __outputs = [];
+var __origPrint = print;
+var __origLog = console.log;
+print = function() {
+  var args = Array.prototype.slice.call(arguments);
+  var e = new Error();
+  var line = 0;
+  if (e.stack) {
+    var m = e.stack.split("\\n");
+    for (var i = 1; i < m.length; i++) {
+      var match = m[i].match(/:([0-9]+)/);
+      if (match) { line = parseInt(match[1]) - ${/* offset for our wrapper preamble */ 12}; break; }
+    }
+  }
+  __origPrint.apply(null, args);
+  __outputs.push({ line: line, idx: __outputs.length });
+};
+console.log = print;
+${code}
+`;
+
+    const result = this.ctx!.evalCode(wrappedCode, '<user>');
+
     if (result.error) {
-      const err = this.ctx.dump(result.error);
+      const errObj = this.ctx!.dump(result.error);
       result.error.dispose();
-      this.consoleBuffer.push({ type: 'error', text: String(err) });
+      // Try to extract line number from error
+      const errStr = String(errObj);
+      const lineMatch = errStr.match(/<user>:(\d+)/);
+      const line = lineMatch ? parseInt(lineMatch[1]!, 10) - 12 : undefined;
+      this.consoleBuffer.push({ type: 'error', text: errStr, line });
     } else {
-      const val = this.ctx.dump(result.value);
+      const val = this.ctx!.dump(result.value);
       result.value.dispose();
       if (val !== undefined) {
-        this.consoleBuffer.push({ type: 'result', text: String(val) });
+        const totalLines = code.split('\n').length;
+        this.consoleBuffer.push({ type: 'result', text: this.stringify(val), line: totalLines });
       }
     }
+
+    // Now get line info from __outputs and tag the log entries
+    const outputsHandle = this.ctx!.evalCode('typeof __outputs !== "undefined" ? JSON.stringify(__outputs) : "[]"');
+    let lineMap: { line: number; idx: number }[] = [];
+    if (!outputsHandle.error) {
+      try {
+        lineMap = JSON.parse(this.ctx!.dump(outputsHandle.value) as string);
+      } catch {}
+      outputsHandle.value.dispose();
+    } else {
+      outputsHandle.error.dispose();
+    }
+
+    // Tag log entries with line numbers from __outputs
+    let logIdx = 0;
+    for (const entry of this.consoleBuffer) {
+      if (entry.type === 'log' && logIdx < lineMap.length) {
+        entry.line = lineMap[logIdx]!.line;
+        logIdx++;
+      }
+    }
+
     return [...this.consoleBuffer];
   }
 
