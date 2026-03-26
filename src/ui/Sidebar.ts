@@ -5,42 +5,57 @@ export class Sidebar {
   private el: HTMLDivElement;
   private state: GameState;
   private console: ConsoleOutput;
+  private prevPrices: Map<string, number> = new Map();
 
   constructor(el: HTMLDivElement, state: GameState, console: ConsoleOutput) {
     this.el = el;
     this.state = state;
     this.console = console;
+    // Snapshot initial prices
+    for (const s of state.stockMarket.stocks) {
+      this.prevPrices.set(s.symbol, s.price);
+    }
     this.render();
   }
 
   private render(): void {
     this.el.innerHTML = `
-      <h2>STATUS</h2>
-      <div class="stat">Year: <span id="sb-year">1983</span></div>
-      <div class="stat">Money: $<span id="sb-money">1,000</span></div>
-      <div class="stat">Energy: <span id="sb-energy">100</span> kWh</div>
-      <div class="stat">Compute: <span id="sb-compute">CPU x1</span></div>
-      <div class="stat">Era: <span id="sb-era">Dawn of Computing</span></div>
+      <div class="sb-header">QUANTUM SRC</div>
 
-      <h2>MARKET</h2>
-      <div class="sidebar-section" id="sb-stocks"></div>
-      <div class="sidebar-section" style="margin-top:4px;">
-        <button class="sidebar-btn" id="btn-market">View Quotes</button>
-        <button class="sidebar-btn" id="btn-portfolio">Portfolio</button>
+      <div class="sb-section">
+        <h3>System Status</h3>
+        <div class="stat-row"><span>Year</span><span class="val" id="sb-year">1983</span></div>
+        <div class="stat-row"><span>Era</span><span class="val era" id="sb-era">Dawn of Computing</span></div>
+        <div class="stat-row"><span>Money</span><span class="val money" id="sb-money">$1,000</span></div>
+        <div class="stat-row"><span>Energy</span><span class="val energy" id="sb-energy">100 / 100 kWh</span></div>
+        <div class="stat-row"><span>Compute</span><span class="val" id="sb-compute">CPU x1</span></div>
       </div>
 
-      <h2>ACTIONS</h2>
-      <div class="sidebar-section">
-        <button class="sidebar-btn" id="btn-status">Status Report</button>
+      <div class="sb-section">
+        <h3>Stock Market</h3>
+        <div id="sb-stocks"></div>
+      </div>
+
+      <div class="sb-section">
+        <h3>Portfolio</h3>
+        <div id="sb-portfolio"><div class="stat-row" style="color:#334455;">No holdings</div></div>
+      </div>
+
+      <div class="sb-section">
+        <h3>Actions</h3>
         <button class="sidebar-btn" id="btn-advance1">Advance 1 Year</button>
         <button class="sidebar-btn" id="btn-advance5">Advance 5 Years</button>
+        <button class="sidebar-btn" id="btn-advance25">Advance 25 Years</button>
       </div>
 
-      <h2>RESEARCH</h2>
-      <div class="sidebar-section" id="sb-research"></div>
+      <div class="sb-section">
+        <h3>Research Tree</h3>
+        <div id="sb-research"></div>
+      </div>
     `;
 
     this.bindButtons();
+    this.update();
   }
 
   private bindButtons(): void {
@@ -48,105 +63,147 @@ export class Sidebar {
       this.el.querySelector(`#${id}`)?.addEventListener('click', fn);
     };
 
-    bind('btn-market', () => {
-      this.console.appendSystem(this.state.stockMarket.getQuotes());
-    });
-
-    bind('btn-portfolio', () => {
-      const p = this.state.portfolio;
-      if (p.size === 0) {
-        this.console.appendSystem('Portfolio is empty.');
-        return;
-      }
-      const lines: string[] = ['Portfolio:'];
-      let total = 0;
-      for (const [sym, qty] of p) {
-        if (qty <= 0) continue;
-        const stock = this.state.stockMarket.getStock(sym);
-        const val = stock ? stock.price * qty : 0;
-        total += val;
-        lines.push(`  ${sym}: ${qty} shares ($${val.toFixed(2)})`);
-      }
-      lines.push(`  Total: $${total.toFixed(2)}`);
-      this.console.appendSystem(lines.join('\n'));
-    });
-
-    bind('btn-status', () => {
-      const s = this.state;
-      this.console.appendSystem(
-        `Year: ${s.year} | Money: $${s.money.toLocaleString()} | Energy: ${s.energy}/${s.totalEnergyCapacity} kWh | ${s.getComputeLabel()} | ${s.getEraName()}`
-      );
-    });
-
     bind('btn-advance1', () => {
       this.state.advanceYear(1);
-      this.console.appendSystem(`Advanced to year ${this.state.year}. Era: ${this.state.getEraName()}`);
+      this.console.appendSystem(`Year ${this.state.year}. Era: ${this.state.getEraName()}`);
     });
 
     bind('btn-advance5', () => {
       this.state.advanceYear(5);
-      this.console.appendSystem(`Advanced to year ${this.state.year}. Era: ${this.state.getEraName()}`);
+      this.console.appendSystem(`Year ${this.state.year}. Era: ${this.state.getEraName()}`);
+    });
+
+    bind('btn-advance25', () => {
+      this.state.advanceYear(25);
+      this.console.appendSystem(`Year ${this.state.year}. Era: ${this.state.getEraName()}`);
     });
   }
 
   update(): void {
     const s = this.state;
-    const el = (id: string) => this.el.querySelector(`#${id}`);
     const setText = (id: string, text: string) => {
-      const node = el(id);
+      const node = this.el.querySelector(`#${id}`);
       if (node) node.textContent = text;
     };
 
     setText('sb-year', String(s.year));
-    setText('sb-money', s.money.toLocaleString());
-    setText('sb-energy', String(Math.round(s.energy)));
-    setText('sb-compute', s.getComputeLabel());
     setText('sb-era', s.getEraName());
+    setText('sb-money', `$${s.money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    setText('sb-energy', `${Math.round(s.energy)} / ${s.totalEnergyCapacity} kWh`);
+    setText('sb-compute', s.getComputeLabel());
 
-    // Stock tickers
-    const stocksEl = el('sb-stocks');
-    if (stocksEl) {
-      stocksEl.innerHTML = s.stockMarket.stocks
-        .map(st => `<div class="stat" style="font-size:11px;">${st.symbol}: $${st.price.toFixed(2)}</div>`)
-        .join('');
+    this.updateStocks();
+    this.updatePortfolio();
+    this.updateResearch();
+  }
+
+  private updateStocks(): void {
+    const el = this.el.querySelector('#sb-stocks');
+    if (!el) return;
+
+    el.innerHTML = this.state.stockMarket.stocks.map(st => {
+      const prev = this.prevPrices.get(st.symbol) ?? st.price;
+      const diff = st.price - prev;
+      const pct = prev > 0 ? (diff / prev) * 100 : 0;
+      const cls = diff >= 0 ? 'up' : 'down';
+      const sign = diff >= 0 ? '+' : '';
+      return `<div class="stock-row">
+        <span class="sym">${st.symbol}</span>
+        <span class="price">$${st.price.toFixed(2)}</span>
+        <span class="change ${cls}">${sign}${pct.toFixed(1)}%</span>
+      </div>`;
+    }).join('');
+
+    // Update prev prices for next tick
+    for (const st of this.state.stockMarket.stocks) {
+      this.prevPrices.set(st.symbol, st.price);
+    }
+  }
+
+  private updatePortfolio(): void {
+    const el = this.el.querySelector('#sb-portfolio');
+    if (!el) return;
+
+    const entries: string[] = [];
+    let totalValue = 0;
+
+    for (const [sym, qty] of this.state.portfolio) {
+      if (qty <= 0) continue;
+      const stock = this.state.stockMarket.getStock(sym);
+      const val = stock ? stock.price * qty : 0;
+      totalValue += val;
+      entries.push(`<div class="portfolio-row">
+        <span>${sym} <span class="shares">x${qty}</span></span>
+        <span class="value">$${val.toFixed(2)}</span>
+      </div>`);
     }
 
-    // Research buttons
-    const researchEl = el('sb-research');
-    if (researchEl) {
-      const available = s.researchTree.filter(n => !n.researched && n.unlocked);
-      const done = s.researchTree.filter(n => n.researched);
-      researchEl.innerHTML =
-        available.map(n =>
-          `<button class="sidebar-btn research-btn" data-id="${n.id}" title="${n.description}">
-            ${n.name} ($${n.cost.toLocaleString()})
-          </button>`
-        ).join('') +
-        done.map(n =>
-          `<div class="stat" style="font-size:11px;color:#557799;">[DONE] ${n.name}</div>`
-        ).join('');
+    if (entries.length === 0) {
+      el.innerHTML = '<div class="stat-row" style="color:#334455;">No holdings</div>';
+    } else {
+      entries.push(`<div class="portfolio-row" style="border-top:1px solid #1a3a2a;margin-top:4px;padding-top:4px;">
+        <span style="color:#668877;">Total</span>
+        <span class="value">$${totalValue.toFixed(2)}</span>
+      </div>`);
+      el.innerHTML = entries.join('');
+    }
+  }
 
-      researchEl.querySelectorAll('.research-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = (btn as HTMLElement).dataset['id']!;
-          const node = s.researchTree.find(n => n.id === id)!;
-          if (s.money < node.cost) {
-            this.console.appendError(`Not enough money. Need $${node.cost.toLocaleString()}`);
-            return;
+  private updateResearch(): void {
+    const el = this.el.querySelector('#sb-research');
+    if (!el) return;
+
+    const s = this.state;
+    const available = s.researchTree.filter(n => !n.researched && n.unlocked);
+    const done = s.researchTree.filter(n => n.researched);
+    const locked = s.researchTree.filter(n => !n.researched && !n.unlocked);
+
+    const html: string[] = [];
+
+    for (const n of available) {
+      const canAfford = s.money >= n.cost;
+      const cls = canAfford ? 'sidebar-btn research-btn' : 'sidebar-btn research-btn';
+      const style = canAfford ? '' : 'opacity:0.6;';
+      html.push(`<button class="${cls}" style="${style}" data-id="${n.id}" title="${n.description}">
+        ${n.name} <span class="cost">$${n.cost.toLocaleString()}</span>
+      </button>`);
+    }
+
+    if (done.length > 0) {
+      for (const n of done) {
+        html.push(`<div class="research-done">[DONE] ${n.name}</div>`);
+      }
+    }
+
+    if (locked.length > 0) {
+      html.push(`<div class="research-locked" style="margin-top:4px;">${locked.length} locked</div>`);
+    }
+
+    el.innerHTML = html.join('');
+
+    // Bind research buttons
+    el.querySelectorAll('.research-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset['id']!;
+        const node = s.researchTree.find(n => n.id === id);
+        if (!node) return;
+        if (s.money < node.cost) {
+          this.console.appendError(`Need $${node.cost.toLocaleString()}, have $${s.money.toLocaleString()}`);
+          return;
+        }
+        s.money -= node.cost;
+        node.researched = true;
+        // Unlock dependents
+        for (const other of s.researchTree) {
+          if (!other.unlocked && other.prerequisites.every(
+            p => s.researchTree.find(n2 => n2.id === p)?.researched
+          )) {
+            other.unlocked = true;
           }
-          s.money -= node.cost;
-          node.researched = true;
-          // Unlock dependents
-          for (const other of s.researchTree) {
-            if (!other.unlocked && other.prerequisites.every(
-              p => s.researchTree.find(n => n.id === p)?.researched
-            )) {
-              other.unlocked = true;
-            }
-          }
-          this.console.appendSystem(`Researched: ${node.name}! ${node.description}`);
-        });
+        }
+        this.console.appendSystem(`Researched: ${node.name}!`);
+        this.console.appendLog(node.description);
       });
-    }
+    });
   }
 }

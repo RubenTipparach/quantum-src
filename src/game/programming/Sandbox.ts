@@ -15,8 +15,8 @@ export class Sandbox {
   async init(state: GameState): Promise<void> {
     const QuickJS = await getQuickJS();
     this.runtime = QuickJS.newRuntime();
-    this.runtime.setMemoryLimit(1024 * 1024 * 10); // 10MB
-    this.runtime.setMaxStackSize(1024 * 512); // 512KB stack
+    this.runtime.setMemoryLimit(1024 * 1024 * 10);
+    this.runtime.setMaxStackSize(1024 * 512);
     this.rebuildContext(state);
     this.ready = true;
   }
@@ -33,26 +33,23 @@ export class Sandbox {
     // console.log
     const consoleObj = ctx.newObject();
     const logFn = ctx.newFunction('log', (...args) => {
-      const texts = args.map(a => {
-        const str = ctx.getString(a);
-        return str;
-      });
-      this.consoleBuffer.push({ type: 'log', text: texts.join(' ') });
+      const texts = args.map(a => ctx.dump(a));
+      this.consoleBuffer.push({ type: 'log', text: texts.map(t => String(t)).join(' ') });
     });
     ctx.setProp(consoleObj, 'log', logFn);
     ctx.setProp(ctx.global, 'console', consoleObj);
     logFn.dispose();
     consoleObj.dispose();
 
-    // print (alias)
+    // print (alias for console.log)
     const printFn = ctx.newFunction('print', (...args) => {
-      const texts = args.map(a => ctx.getString(a));
-      this.consoleBuffer.push({ type: 'log', text: texts.join(' ') });
+      const texts = args.map(a => ctx.dump(a));
+      this.consoleBuffer.push({ type: 'log', text: texts.map(t => String(t)).join(' ') });
     });
     ctx.setProp(ctx.global, 'print', printFn);
     printFn.dispose();
 
-    // game.money, game.year, etc.
+    // game API object
     const gameObj = ctx.newObject();
 
     const getMoney = ctx.newFunction('getMoney', () => ctx.newNumber(state.money));
@@ -67,7 +64,6 @@ export class Sandbox {
     ctx.setProp(gameObj, 'getEnergy', getEnergy);
     getEnergy.dispose();
 
-    // game.stocks() — returns JSON string of current quotes
     const getStocks = ctx.newFunction('getStocks', () => {
       const data = state.stockMarket.stocks.map(s => ({
         symbol: s.symbol,
@@ -78,14 +74,17 @@ export class Sandbox {
     ctx.setProp(gameObj, 'getStocks', getStocks);
     getStocks.dispose();
 
-    // game.buy(symbol, qty)
     const buyFn = ctx.newFunction('buy', (symHandle, qtyHandle) => {
-      const symbol = ctx.getString(symHandle).toUpperCase();
-      const qty = ctx.getNumber(qtyHandle);
-      const stock = state.stockMarket.getStock(symbol);
-      if (!stock) return ctx.newString(`Unknown stock: ${symbol}`);
+      const symbol = ctx.dump(symHandle) as string;
+      const qty = ctx.dump(qtyHandle) as number;
+      if (typeof symbol !== 'string' || typeof qty !== 'number') {
+        return ctx.newString('Usage: game.buy("SYMBOL", quantity)');
+      }
+      const sym = symbol.toUpperCase();
+      const stock = state.stockMarket.getStock(sym);
+      if (!stock) return ctx.newString(`Unknown stock: ${sym}`);
       const cost = stock.price * qty;
-      if (cost > state.money) return ctx.newString(`Not enough money`);
+      if (cost > state.money) return ctx.newString(`Not enough money. Need $${cost.toFixed(2)}`);
       state.money -= cost;
       const current = state.portfolio.get(stock.symbol) ?? 0;
       state.portfolio.set(stock.symbol, current + qty);
@@ -94,22 +93,24 @@ export class Sandbox {
     ctx.setProp(gameObj, 'buy', buyFn);
     buyFn.dispose();
 
-    // game.sell(symbol, qty)
     const sellFn = ctx.newFunction('sell', (symHandle, qtyHandle) => {
-      const symbol = ctx.getString(symHandle).toUpperCase();
-      const qty = ctx.getNumber(qtyHandle);
-      const owned = state.portfolio.get(symbol) ?? 0;
-      if (owned < qty) return ctx.newString(`Only own ${owned} shares of ${symbol}`);
-      const stock = state.stockMarket.getStock(symbol);
-      if (!stock) return ctx.newString(`Unknown stock: ${symbol}`);
+      const symbol = ctx.dump(symHandle) as string;
+      const qty = ctx.dump(qtyHandle) as number;
+      if (typeof symbol !== 'string' || typeof qty !== 'number') {
+        return ctx.newString('Usage: game.sell("SYMBOL", quantity)');
+      }
+      const sym = symbol.toUpperCase();
+      const owned = state.portfolio.get(sym) ?? 0;
+      if (owned < qty) return ctx.newString(`Only own ${owned} shares of ${sym}`);
+      const stock = state.stockMarket.getStock(sym);
+      if (!stock) return ctx.newString(`Unknown stock: ${sym}`);
       state.money += stock.price * qty;
-      state.portfolio.set(symbol, owned - qty);
-      return ctx.newString(`Sold ${qty} ${symbol} @ $${stock.price.toFixed(2)}`);
+      state.portfolio.set(sym, owned - qty);
+      return ctx.newString(`Sold ${qty} ${sym} @ $${stock.price.toFixed(2)}`);
     });
     ctx.setProp(gameObj, 'sell', sellFn);
     sellFn.dispose();
 
-    // game.getPortfolio()
     const getPortfolio = ctx.newFunction('getPortfolio', () => {
       const data: Record<string, number> = {};
       for (const [sym, qty] of state.portfolio) {
@@ -130,19 +131,18 @@ export class Sandbox {
       return [{ type: 'error', text: 'Sandbox not initialized yet.' }];
     }
 
-    // Rebuild context each run to pick up latest game state
     this.rebuildContext(state);
 
     const result = this.ctx.evalCode(code);
     if (result.error) {
-      const err = this.ctx.getString(result.error);
+      const err = this.ctx.dump(result.error);
       result.error.dispose();
-      this.consoleBuffer.push({ type: 'error', text: err });
+      this.consoleBuffer.push({ type: 'error', text: String(err) });
     } else {
-      const val = this.ctx.getString(result.value);
+      const val = this.ctx.dump(result.value);
       result.value.dispose();
-      if (val !== 'undefined') {
-        this.consoleBuffer.push({ type: 'result', text: val });
+      if (val !== undefined) {
+        this.consoleBuffer.push({ type: 'result', text: String(val) });
       }
     }
 

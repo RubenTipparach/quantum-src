@@ -14,6 +14,7 @@ export class GameEngine {
   private sandbox: Sandbox;
   private consoleOutput: ConsoleOutput;
   private sidebar: Sidebar;
+  private editor: CodeEditor;
 
   constructor(canvas: HTMLCanvasElement, gameState: GameState) {
     this.gameState = gameState;
@@ -24,20 +25,22 @@ export class GameEngine {
     const consoleEl = document.getElementById('console-panel') as HTMLDivElement;
     this.consoleOutput = new ConsoleOutput(consoleEl);
 
+    // Clear console button
+    document.getElementById('clear-console-btn')!.addEventListener('click', () => {
+      this.consoleOutput.clear();
+    });
+
     // Sidebar
     const sidebarEl = document.getElementById('sidebar') as HTMLDivElement;
     this.sidebar = new Sidebar(sidebarEl, gameState, this.consoleOutput);
 
     // Code editor
     const editorContainer = document.getElementById('editor-container') as HTMLDivElement;
-    new CodeEditor(editorContainer, (code) => this.runCode(code));
+    this.editor = new CodeEditor(editorContainer, (code) => this.runCode(code));
 
-    // Run button
+    // Run button — uses editor instance directly
     document.getElementById('run-btn')!.addEventListener('click', () => {
-      const editorView = editorContainer.querySelector('.cm-content') as HTMLElement;
-      // Get code from CodeMirror
-      const code = editorView?.innerText ?? '';
-      this.runCode(code);
+      this.runCode(this.editor.getCode());
     });
 
     // Three.js
@@ -57,11 +60,16 @@ export class GameEngine {
 
     this.setupScene();
     window.addEventListener('resize', () => this.onResize());
+  }
 
-    // Init sandbox (async)
-    this.sandbox.init(gameState).then(() => {
-      this.consoleOutput.appendSystem('Sandbox ready.');
-    });
+  async init(): Promise<void> {
+    try {
+      await this.sandbox.init(this.gameState);
+      this.consoleOutput.appendSystem('Sandbox ready. Write code and click RUN.');
+    } catch (err) {
+      this.consoleOutput.appendError(`Sandbox failed to load: ${err}`);
+      this.consoleOutput.appendSystem('You can still use sidebar buttons.');
+    }
   }
 
   private runCode(code: string): void {
