@@ -1,0 +1,24 @@
+{
+  "name": "quantum-src",
+  "version": "0.1.0",
+  "description": "A programming game spanning 500 years — write code, gather resources, build megastructures, and bring about post-scarcity.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:42679/git/RubenTipparach/quantum-src"
+  },
+  "keywords": ["game", "three.js", "programming", "simulation"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/three": "^0.183.1",
+    "three": "^0.183.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3"
+  }
+}
