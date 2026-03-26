@@ -111,10 +111,10 @@ export class ProgramInterpreter {
       );
       return `Prerequisites not met: ${missing.join(', ')}`;
     }
-    if (this.state.money < node.cost) {
-      return `Not enough money. Need $${node.cost.toLocaleString()}, have $${this.state.money.toLocaleString()}`;
+    if (this.state.researchCredits < node.creditsCost) {
+      return `Need ${node.creditsCost} credits, have ${this.state.researchCredits}`;
     }
-    this.state.money -= node.cost;
+    this.state.researchCredits -= node.creditsCost;
     node.researched = true;
 
     for (const other of this.state.researchTree) {
@@ -131,7 +131,7 @@ export class ProgramInterpreter {
   private showResearchTree(): string {
     const lines: string[] = ['Research Tree:'];
     for (const node of this.state.researchTree) {
-      const status = node.researched ? '[DONE]' : node.unlocked ? `[$${node.cost.toLocaleString()}]` : '[LOCKED]';
+      const status = node.researched ? '[DONE]' : node.unlocked ? `[${node.creditsCost} cr]` : '[LOCKED]';
       lines.push(`  ${status} ${node.name} (${node.id})`);
     }
     return lines.join('\n');

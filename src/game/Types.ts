@@ -5,26 +5,28 @@ export interface ComputeHardware {
   cores: number;
   clockSpeed: number;
   generation: number;
+  ram: number;       // MB of RAM
+  maxRam: number;    // max RAM this hardware supports
 }
 
-export interface Mission {
+export interface ShopItem {
   id: string;
   name: string;
   description: string;
+  cost: number;
   era: string;
-  requirements: MissionRequirement[];
-  rewards: MissionReward;
-  completed: boolean;
+  category: 'cpu' | 'gpu' | 'quantum' | 'subatomic' | 'ram' | 'energy';
+  minYear: number;
+  /** Applied when purchased */
+  apply: (state: GameStateRef) => void;
+  /** Can only buy once? */
+  unique: boolean;
+  purchased: boolean;
 }
 
-export interface MissionRequirement {
-  type: 'money' | 'energy' | 'research' | 'hardware' | 'program';
-  value: number | string;
-}
-
-export interface MissionReward {
-  money?: number;
-  energy?: number;
-  research?: string[];
-  yearAdvance?: number;
+/** Lightweight ref to avoid circular imports */
+export interface GameStateRef {
+  hardware: ComputeHardware;
+  energy: number;
+  totalEnergyCapacity: number;
 }

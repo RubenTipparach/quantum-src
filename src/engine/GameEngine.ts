@@ -34,6 +34,15 @@ export class GameEngine {
     const sidebarEl = document.getElementById('sidebar') as HTMLDivElement;
     this.sidebar = new Sidebar(sidebarEl, gameState, this.consoleOutput);
 
+    // Wire up mission loading into editor
+    this.sidebar.setOnLoadMission((mission) => {
+      this.editor.setCode(mission.starterCode);
+      this.consoleOutput.appendSystem(`--- MISSION: ${mission.name} ---`);
+      this.consoleOutput.appendLog(mission.description);
+      this.consoleOutput.appendLog(`Hint: ${mission.hint}`);
+      this.consoleOutput.appendLog(`Reward: ${mission.researchCredits} research credits` + (mission.moneyReward > 0 ? ` + $${mission.moneyReward.toLocaleString()}` : ''));
+    });
+
     const editorContainer = document.getElementById('editor-container') as HTMLDivElement;
     this.editor = new CodeEditor(editorContainer, (code) => this.runCode(code));
 
@@ -166,13 +175,21 @@ export class GameEngine {
       },
 
       onDone: () => {
-        // Show execution error if any
         if (trace.error) {
           this.consoleOutput.append(trace.error);
           this.vfx.trigger('error');
         }
 
         this.consoleOutput.appendSystem('--- DONE ---');
+
+        // Check missions against all log outputs
+        const allOutputs = trace.outputs.map(o => o.entry.text);
+        const completed = this.gameState.checkMissions(allOutputs);
+        for (const m of completed) {
+          this.consoleOutput.appendSystem(`MISSION COMPLETE: ${m.name}!`);
+          this.consoleOutput.appendLog(`+${m.researchCredits} research credits` + (m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : ''));
+        }
+
         this.runBtn.textContent = 'RUN';
         this.runBtn.style.opacity = '1';
         this.vfx.trigger('done');
