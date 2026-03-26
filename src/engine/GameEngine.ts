@@ -38,28 +38,67 @@ export class GameEngine {
     const editorContainer = document.getElementById('editor-container') as HTMLDivElement;
     this.editor = new CodeEditor(editorContainer, (code) => this.runCode(code));
 
-    // Run button — uses editor instance directly
+    // Run button
     document.getElementById('run-btn')!.addEventListener('click', () => {
       this.runCode(this.editor.getCode());
     });
+
+    // Mobile tab switching
+    this.setupTabs();
 
     // Three.js
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a1a);
 
     const viewport = document.getElementById('viewport')!;
-    const w = viewport.clientWidth;
-    const h = viewport.clientHeight;
+    const w = viewport.clientWidth || window.innerWidth;
+    const h = viewport.clientHeight || window.innerHeight;
     this.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
     this.camera.position.set(0, 5, 10);
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setSize(w, h);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     this.setupScene();
     window.addEventListener('resize', () => this.onResize());
+  }
+
+  private setupTabs(): void {
+    const tabBar = document.getElementById('tab-bar');
+    if (!tabBar) return;
+
+    const tabs = tabBar.querySelectorAll('button');
+    const panels = ['sidebar', 'viewport', 'right-panel'];
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset['tab'];
+        if (!target) return;
+
+        // Update tab active state
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Show/hide panels
+        panels.forEach(id => {
+          const panel = document.getElementById(id);
+          if (panel) {
+            if (id === target) {
+              panel.classList.add('active-tab');
+            } else {
+              panel.classList.remove('active-tab');
+            }
+          }
+        });
+
+        // If switching to viewport, resize the renderer
+        if (target === 'viewport') {
+          requestAnimationFrame(() => this.onResize());
+        }
+      });
+    });
   }
 
   async init(): Promise<void> {
@@ -108,8 +147,8 @@ export class GameEngine {
 
   private onResize(): void {
     const viewport = document.getElementById('viewport')!;
-    const w = viewport.clientWidth;
-    const h = viewport.clientHeight;
+    const w = viewport.clientWidth || 1;
+    const h = viewport.clientHeight || 1;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);

@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>QuantumSrc — Build the Future</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background: #0a0a0f; color: #00ff88; font-family: 'Courier New', monospace; font-size: 13px; }
 
+    /* ========== DESKTOP: 3-column ========== */
     #app {
       display: grid;
       grid-template-columns: 240px 1fr 420px;
@@ -15,6 +16,30 @@
       width: 100vw;
       height: 100vh;
     }
+
+    /* --- Mobile Tab Bar (hidden on desktop) --- */
+    #tab-bar {
+      display: none;
+      background: #060610;
+      border-bottom: 1px solid #1a3a2a;
+      flex-shrink: 0;
+    }
+    #tab-bar button {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #336655;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 10px 0;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #tab-bar button.active { color: #00ff88; border-bottom-color: #00ff88; }
+    #tab-bar button:hover { color: #00ff88; }
 
     /* --- Left Sidebar --- */
     #sidebar {
@@ -92,16 +117,8 @@
 
     .research-btn { font-size: 11px; }
     .research-btn .cost { color: #ffaa22; float: right; }
-    .research-done {
-      font-size: 10px;
-      color: #334455;
-      padding: 2px 0;
-    }
-    .research-locked {
-      font-size: 10px;
-      color: #1a2a22;
-      padding: 2px 0;
-    }
+    .research-done { font-size: 10px; color: #334455; padding: 2px 0; }
+    .research-locked { font-size: 10px; color: #1a2a22; padding: 2px 0; }
 
     .portfolio-row {
       display: flex;
@@ -160,15 +177,9 @@
       overflow: auto;
       min-height: 0;
     }
-    #editor-container .cm-editor {
-      height: 100%;
-      font-size: 13px;
-    }
-    #editor-container .cm-editor .cm-scroller {
-      overflow: auto;
-    }
+    #editor-container .cm-editor { height: 100%; font-size: 13px; }
+    #editor-container .cm-editor .cm-scroller { overflow: auto; }
 
-    /* Console */
     #console-header {
       display: flex;
       align-items: center;
@@ -210,15 +221,85 @@
     #console-panel .error { color: #ff5555; }
     #console-panel .system { color: #557799; }
     #console-panel .result { color: #00ff88; font-weight: bold; }
+
+    /* ========== TABLET: 2-column ========== */
+    @media (max-width: 1024px) {
+      #app {
+        grid-template-columns: 200px 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+      #sidebar {
+        grid-row: 1 / 3;
+      }
+      #viewport {
+        grid-column: 2;
+        grid-row: 1;
+      }
+      #right-panel {
+        grid-column: 2;
+        grid-row: 2;
+        border-left: none;
+        border-top: 1px solid #1a3a2a;
+      }
+      #console-panel { height: 120px; }
+    }
+
+    /* ========== MOBILE: tabbed single-panel ========== */
+    @media (max-width: 640px) {
+      #app {
+        display: flex;
+        flex-direction: column;
+        grid-template-columns: unset;
+        grid-template-rows: unset;
+      }
+      #tab-bar {
+        display: flex;
+      }
+      /* Hide inactive panels */
+      #sidebar, #viewport, #right-panel {
+        display: none;
+        flex: 1;
+        min-height: 0;
+        border: none;
+      }
+      #sidebar.active-tab, #viewport.active-tab, #right-panel.active-tab {
+        display: flex;
+      }
+      #viewport.active-tab {
+        display: block;
+      }
+
+      /* Mobile sidebar tweaks */
+      #sidebar { border-right: none; }
+      .sb-header { font-size: 14px; padding: 8px 12px; }
+      .sidebar-btn { padding: 10px 12px; font-size: 13px; }
+      .stat-row { font-size: 13px; padding: 3px 0; }
+      .stock-row { font-size: 12px; padding: 4px 0; }
+      .stock-row .sym { width: 60px; }
+
+      /* Mobile editor tweaks */
+      #right-panel { border-left: none; }
+      #editor-container .cm-editor { font-size: 14px; }
+      #console-panel {
+        height: 150px;
+        font-size: 12px;
+      }
+      #run-btn { padding: 8px 24px; font-size: 13px; }
+    }
   </style>
 </head>
 <body>
   <div id="app">
-    <div id="sidebar"></div>
-    <div id="viewport">
+    <div id="tab-bar">
+      <button id="tab-status" class="active" data-tab="sidebar">Status</button>
+      <button id="tab-view" data-tab="viewport">View</button>
+      <button id="tab-code" data-tab="right-panel">Code</button>
+    </div>
+    <div id="sidebar" class="active-tab"></div>
+    <div id="viewport" class="active-tab">
       <canvas id="game-canvas"></canvas>
     </div>
-    <div id="right-panel">
+    <div id="right-panel" class="active-tab">
       <div id="editor-header">
         <span class="title"><span>program.js</span> — Ctrl+Enter to run</span>
         <button id="run-btn">RUN</button>
