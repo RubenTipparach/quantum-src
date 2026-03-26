@@ -16,6 +16,8 @@ for (let s of stocks) {
 print("Cash: $" + game.getMoney());
 `;
 
+const SAVE_KEY = 'quantumsrc_editor_code';
+
 const setExecutingLine = StateEffect.define<number | null>();
 
 const executingLineDeco = Decoration.line({ class: 'cm-executing-line' });
@@ -71,15 +73,23 @@ export class CodeEditor {
       },
     }]);
 
+    const savedCode = localStorage.getItem(SAVE_KEY);
+    const initialCode = savedCode ?? STARTER_CODE;
+
     this.view = new EditorView({
       state: EditorState.create({
-        doc: STARTER_CODE,
+        doc: initialCode,
         extensions: [
           basicSetup,
           javascript(),
           oneDark,
           runKeymap,
           executingLineField,
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              localStorage.setItem(SAVE_KEY, update.state.doc.toString());
+            }
+          }),
           EditorView.theme({
             '&': { height: '100%' },
             '.cm-scroller': { overflow: 'auto' },
