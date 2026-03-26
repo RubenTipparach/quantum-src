@@ -1,13 +1,11 @@
 import type { GameState } from '../GameState';
 
 /**
- * Simple command interpreter for the in-game console.
- * This will evolve into the full custom language as the game progresses.
- * For now it supports basic commands to interact with game systems.
+ * Legacy command interpreter for the in-game console.
+ * Kept for simple text commands; scripting now handled by Sandbox + QuickJS.
  */
 export class ProgramInterpreter {
   private state: GameState;
-  private portfolio: Map<string, number> = new Map(); // symbol -> shares owned
 
   constructor(state: GameState) {
     this.state = state;
@@ -31,8 +29,6 @@ export class ProgramInterpreter {
         return this.sell(parts[1], Number(parts[2]));
       case 'portfolio':
         return this.showPortfolio();
-      case 'mine':
-        return this.mine(parts[1]);
       case 'research':
         return this.research(parts[1]);
       case 'tree':
@@ -53,7 +49,6 @@ export class ProgramInterpreter {
       '  buy <SYM> <QTY>   - Buy shares',
       '  sell <SYM> <QTY>  - Sell shares',
       '  portfolio         - Show your holdings',
-      '  mine start|stop   - Start/stop crypto mining',
       '  research <id>     - Research a technology',
       '  tree              - Show research tree',
       '  advance [years]   - Advance time',
@@ -72,29 +67,29 @@ export class ProgramInterpreter {
     const cost = stock.price * qty;
     if (cost > this.state.money) return `Not enough money. Need $${cost.toFixed(2)}, have $${this.state.money.toFixed(2)}`;
     this.state.money -= cost;
-    const current = this.portfolio.get(stock.symbol) ?? 0;
-    this.portfolio.set(stock.symbol, current + qty);
+    const current = this.state.portfolio.get(stock.symbol) ?? 0;
+    this.state.portfolio.set(stock.symbol, current + qty);
     return `Bought ${qty} ${stock.symbol} @ $${stock.price.toFixed(2)} = $${cost.toFixed(2)}`;
   }
 
   private sell(symbol: string | undefined, qty: number): string {
     if (!symbol || isNaN(qty) || qty <= 0) return 'Usage: sell <SYMBOL> <QUANTITY>';
     const sym = symbol.toUpperCase();
-    const owned = this.portfolio.get(sym) ?? 0;
+    const owned = this.state.portfolio.get(sym) ?? 0;
     if (owned < qty) return `You only own ${owned} shares of ${sym}`;
     const stock = this.state.stockMarket.getStock(sym);
     if (!stock) return `Unknown stock: ${sym}`;
     const revenue = stock.price * qty;
     this.state.money += revenue;
-    this.portfolio.set(sym, owned - qty);
+    this.state.portfolio.set(sym, owned - qty);
     return `Sold ${qty} ${sym} @ $${stock.price.toFixed(2)} = $${revenue.toFixed(2)}`;
   }
 
   private showPortfolio(): string {
-    if (this.portfolio.size === 0) return 'Portfolio is empty.';
+    if (this.state.portfolio.size === 0) return 'Portfolio is empty.';
     const lines: string[] = ['Your Portfolio:'];
     let totalValue = 0;
-    for (const [sym, qty] of this.portfolio) {
+    for (const [sym, qty] of this.state.portfolio) {
       if (qty <= 0) continue;
       const stock = this.state.stockMarket.getStock(sym);
       const value = stock ? stock.price * qty : 0;
@@ -103,12 +98,6 @@ export class ProgramInterpreter {
     }
     lines.push(`  Total value: $${totalValue.toFixed(2)}`);
     return lines.join('\n');
-  }
-
-  private mine(action: string | undefined): string {
-    if (action === 'start') return this.state.cryptoMiner.startMining();
-    if (action === 'stop') return this.state.cryptoMiner.stopMining();
-    return 'Usage: mine start|stop';
   }
 
   private research(id: string | undefined): string {
@@ -128,7 +117,6 @@ export class ProgramInterpreter {
     this.state.money -= node.cost;
     node.researched = true;
 
-    // Unlock dependent research
     for (const other of this.state.researchTree) {
       if (!other.unlocked && other.prerequisites.every(
         p => this.state.researchTree.find(n => n.id === p)?.researched

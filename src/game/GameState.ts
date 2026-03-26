@@ -1,11 +1,8 @@
-import type { Era } from './eras/Era';
 import { EraRegistry } from './eras/EraRegistry';
 import type { ResearchNode } from './research/ResearchTree';
 import { createResearchTree } from './research/ResearchTree';
 import type { ComputeHardware } from './Types';
 import { StockMarket } from './economy/StockMarket';
-import { CryptoMiner } from './economy/CryptoMiner';
-import { ProgramInterpreter } from './programming/Interpreter';
 
 export class GameState {
   year = 1983;
@@ -17,19 +14,15 @@ export class GameState {
   researchTree: ResearchNode[];
   eras: EraRegistry;
   stockMarket: StockMarket;
-  cryptoMiner: CryptoMiner;
-  interpreter: ProgramInterpreter;
+  portfolio: Map<string, number> = new Map();
 
-  private lastResult = '';
   private timeAccumulator = 0;
-  private readonly TICK_RATE = 1; // 1 game-tick per second
+  private readonly TICK_RATE = 1;
 
   constructor() {
     this.researchTree = createResearchTree();
     this.eras = new EraRegistry();
     this.stockMarket = new StockMarket();
-    this.cryptoMiner = new CryptoMiner(this.hardware);
-    this.interpreter = new ProgramInterpreter(this);
   }
 
   update(delta: number): void {
@@ -42,15 +35,6 @@ export class GameState {
 
   private tick(): void {
     this.stockMarket.tick();
-    this.cryptoMiner.tick(this);
-  }
-
-  executeCommand(code: string): void {
-    this.lastResult = this.interpreter.execute(code);
-  }
-
-  getLastResult(): string {
-    return this.lastResult;
   }
 
   getComputeLabel(): string {
