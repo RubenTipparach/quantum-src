@@ -13,6 +13,7 @@ export class GameEngine {
   private editor: CodeEditor;
   private runBtn: HTMLButtonElement;
   private stockChart: StockChart;
+  private executing = false;
 
   constructor(gameState: GameState) {
     this.gameState = gameState;
@@ -29,6 +30,7 @@ export class GameEngine {
     this.sidebar = new Sidebar(sidebarEl, gameState, this.consoleOutput);
 
     this.sidebar.setOnLoadMission((mission) => {
+      if (this.executing) this.stopExecution();
       this.editor.setCode(mission.starterCode);
       this.consoleOutput.appendSystem(`--- MISSION: ${mission.name} ---`);
       this.consoleOutput.appendLog(mission.description);
@@ -37,19 +39,26 @@ export class GameEngine {
     });
 
     const editorContainer = document.getElementById('editor-container') as HTMLDivElement;
-    this.editor = new CodeEditor(editorContainer, (code) => this.runCode(code));
+    this.editor = new CodeEditor(editorContainer, (code) => {
+      if (this.executing) {
+        this.stopExecution();
+      } else {
+        this.runCode(code);
+      }
+    });
 
     this.runBtn = document.getElementById('run-btn') as HTMLButtonElement;
     this.runBtn.addEventListener('click', () => {
-      this.runCode(this.editor.getCode());
+      if (this.executing) {
+        this.stopExecution();
+      } else {
+        this.runCode(this.editor.getCode());
+      }
     });
 
-    // Stock chart
     const chartCanvas = document.getElementById('stock-chart-canvas') as HTMLCanvasElement;
     this.stockChart = new StockChart(chartCanvas);
     this.setupChartControls();
-
-    // Mobile tabs
     this.setupTabs();
   }
 
@@ -70,7 +79,6 @@ export class GameEngine {
       });
     }
 
-    // Stock selector buttons
     const selectorEl = document.getElementById('stock-selector')!;
     const stocks = this.gameState.stockMarket.stocks;
     for (const s of stocks) {
@@ -134,12 +142,23 @@ export class GameEngine {
     }
   }
 
+  private stopExecution(): void {
+    this.editor.abort();
+    this.executing = false;
+    this.runBtn.textContent = 'RUN';
+    this.runBtn.style.opacity = '1';
+    this.runBtn.style.background = '';
+    this.consoleOutput.appendSystem('--- ABORTED ---');
+  }
+
   private runCode(code: string): void {
-    if (this.editor.isRunning()) return;
     if (!this.sandbox.isReady()) {
       this.consoleOutput.appendError('Sandbox still loading...');
       return;
     }
+
+    // Snapshot the lines at run time (editor can change freely after this)
+    const snapshotLines = code.split('\n');
 
     const trace = this.sandbox.executeTraced(code, this.gameState);
 
@@ -148,12 +167,13 @@ export class GameEngine {
       return;
     }
 
-    this.runBtn.textContent = 'RUNNING...';
-    this.runBtn.style.opacity = '0.5';
+    this.executing = true;
+    this.runBtn.textContent = 'STOP';
+    this.runBtn.style.opacity = '1';
+    this.runBtn.style.background = '#aa3333';
     this.consoleOutput.appendSystem('--- EXECUTING ---');
 
     const speed = this.getStepDelay();
-    const lines = this.editor.getLines();
 
     const outputsByStep = new Map<number, typeof trace.outputs>();
     for (const o of trace.outputs) {
@@ -164,7 +184,8 @@ export class GameEngine {
 
     this.editor.replayTrace(trace.steps, speed, {
       onStep: (stepIndex, lineNumber) => {
-        const lineText = lines[lineNumber - 1] ?? '';
+        // Use snapshot lines for VFX detection (not live editor)
+        const lineText = snapshotLines[lineNumber - 1] ?? '';
         const trimmed = lineText.trim();
         if (trimmed !== '') this.detectVFX(trimmed);
 
@@ -177,6 +198,8 @@ export class GameEngine {
       },
 
       onDone: () => {
+        this.executing = false;
+
         if (trace.error) {
           this.consoleOutput.append(trace.error);
         }
@@ -192,6 +215,14 @@ export class GameEngine {
 
         this.runBtn.textContent = 'RUN';
         this.runBtn.style.opacity = '1';
+        this.runBtn.style.background = '';
+      },
+
+      onAborted: () => {
+        this.executing = false;
+        this.runBtn.textContent = 'RUN';
+        this.runBtn.style.opacity = '1';
+        this.runBtn.style.background = '';
       },
     });
   }
@@ -210,7 +241,6 @@ export class GameEngine {
       this.gameState.update(delta);
       this.sidebar.update();
 
-      // Render stock chart
       const stock = this.gameState.stockMarket.getSelectedStock();
       this.stockChart.render(stock);
     };

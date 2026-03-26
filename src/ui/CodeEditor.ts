@@ -47,16 +47,17 @@ const executingLineField = StateField.define<DecorationSet>({
 });
 
 export interface TraceStepCallback {
-  /** Called for each step in the execution trace */
   onStep: (stepIndex: number, lineNumber: number) => void;
-  /** Called when the trace replay is complete */
   onDone: () => void;
+  onAborted: () => void;
 }
 
 export class CodeEditor {
   private view: EditorView;
   private running = false;
   private animationTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Line count of the code that's currently being animated */
+  private snapshotLineCount = 0;
 
   constructor(container: HTMLElement, onRun: (code: string) => void) {
     const runKeymap = keymap.of([{
@@ -128,19 +129,26 @@ export class CodeEditor {
     return this.running;
   }
 
-  /**
-   * Replay an execution trace — the highlight jumps to each line
-   * in the exact order they actually executed (loops repeat, etc).
-   */
   replayTrace(trace: number[], speed: number, callbacks: TraceStepCallback): void {
-    if (this.running) return;
+    // If already running, abort the current run first
+    if (this.running) {
+      this.abort();
+    }
     this.running = true;
+    this.snapshotLineCount = this.view.state.doc.lines;
 
     let stepIndex = 0;
 
     const step = () => {
+      if (!this.running) {
+        // Was aborted
+        this.clearHighlightSafe();
+        callbacks.onAborted();
+        return;
+      }
+
       if (stepIndex >= trace.length) {
-        this.clearHighlight();
+        this.clearHighlightSafe();
         this.running = false;
         callbacks.onDone();
         return;
@@ -148,17 +156,15 @@ export class CodeEditor {
 
       const lineNum = trace[stepIndex]!;
 
-      // Highlight the line
-      this.view.dispatch({
-        effects: setExecutingLine.of(lineNum),
-      });
-
-      // Scroll into view
+      // Only highlight if the line still exists in the editor
+      // (user may have edited the code shorter during execution)
       const doc = this.view.state.doc;
       if (lineNum >= 1 && lineNum <= doc.lines) {
-        const line = doc.line(lineNum);
         this.view.dispatch({
-          effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
+          effects: setExecutingLine.of(lineNum),
+        });
+        this.view.dispatch({
+          effects: EditorView.scrollIntoView(doc.line(lineNum).from, { y: 'center' }),
         });
       }
 
@@ -171,14 +177,23 @@ export class CodeEditor {
     step();
   }
 
-  clearHighlight(): void {
-    this.view.dispatch({
-      effects: setExecutingLine.of(null),
-    });
+  /** Stop the current animation. Does not clear the running flag — onAborted callback handles that. */
+  abort(): void {
     if (this.animationTimer !== null) {
       clearTimeout(this.animationTimer);
       this.animationTimer = null;
     }
     this.running = false;
+    this.clearHighlightSafe();
+  }
+
+  private clearHighlightSafe(): void {
+    try {
+      this.view.dispatch({
+        effects: setExecutingLine.of(null),
+      });
+    } catch {
+      // Editor state might have changed — ignore
+    }
   }
 }
