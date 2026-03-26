@@ -79,6 +79,20 @@ export class GameEngine {
       });
     }
 
+    // Chart type toggle
+    const btnCandle = document.getElementById('btn-candle')!;
+    const btnLine = document.getElementById('btn-line')!;
+    btnCandle.addEventListener('click', () => {
+      this.stockChart.setMode('candle');
+      btnCandle.classList.add('active');
+      btnLine.classList.remove('active');
+    });
+    btnLine.addEventListener('click', () => {
+      this.stockChart.setMode('line');
+      btnLine.classList.add('active');
+      btnCandle.classList.remove('active');
+    });
+
     const selectorEl = document.getElementById('stock-selector')!;
     const stocks = this.gameState.stockMarket.stocks;
     for (const s of stocks) {
@@ -242,7 +256,8 @@ export class GameEngine {
       this.sidebar.update();
 
       const stock = this.gameState.stockMarket.getSelectedStock();
-      this.stockChart.render(stock);
+      const emotion = this.gameState.stockMarket.getMarketEmotion();
+      this.stockChart.render(stock, emotion);
     };
     animate();
   }

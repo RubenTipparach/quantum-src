@@ -70,6 +70,25 @@ export class StockMarket {
     return this.stocks.find(s => s.symbol === this.selectedSymbol) ?? this.stocks[0]!;
   }
 
+  /** Market emotion: -1 (fear) to +1 (greed), based on recent price trends */
+  getMarketEmotion(): number {
+    let totalChange = 0;
+    let count = 0;
+    for (const stock of this.stocks) {
+      const candles = stock.candles;
+      if (candles.length < 10) continue;
+      const recent = candles.slice(-10);
+      const first = recent[0]!.open;
+      const last = recent[recent.length - 1]!.close;
+      totalChange += (last - first) / first;
+      count++;
+    }
+    if (count === 0) return 0;
+    // Map average % change to -1..1, clamped
+    const avg = totalChange / count;
+    return Math.max(-1, Math.min(1, avg * 20));
+  }
+
   getQuotes(): string {
     return this.stocks
       .map(s => `${s.symbol}: $${s.price.toFixed(2)}`)
