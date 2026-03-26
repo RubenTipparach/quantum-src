@@ -21,6 +21,76 @@ export class Sandbox {
     this.ready = true;
   }
 
+  /**
+   * Prepare a fresh context for a new execution run.
+   * Must be called before stepping through lines.
+   */
+  beginRun(state: GameState): void {
+    this.rebuildContext(state);
+  }
+
+  /**
+   * Try to evaluate a chunk of accumulated code.
+   * Returns:
+   *   'incomplete' — the code is a partial statement (e.g. open brace), keep accumulating
+   *   ConsoleEntry[] — the code evaluated; here are any outputs/errors produced
+   */
+  evalChunk(code: string): 'incomplete' | ConsoleEntry[] {
+    if (!this.ctx) return [{ type: 'error', text: 'Sandbox not initialized.' }];
+
+    this.consoleBuffer = [];
+
+    // Try to evaluate the accumulated code chunk
+    const result = this.ctx.evalCode(code, '<user>', { type: 'global' });
+    if (result.error) {
+      const errObj = this.ctx.dump(result.error);
+      result.error.dispose();
+      const errStr = String(errObj);
+
+      // Detect incomplete statements
+      if (
+        errStr.includes('unexpected end of input') ||
+        errStr.includes('Unexpected end of input') ||
+        errStr.includes('expected expression') ||
+        (errStr.includes('Unexpected token') && errStr.includes("'<eof>'"))
+      ) {
+        return 'incomplete';
+      }
+
+      this.consoleBuffer.push({ type: 'error', text: errStr });
+    } else {
+      const val = this.ctx.dump(result.value);
+      result.value.dispose();
+      if (val !== undefined) {
+        this.consoleBuffer.push({ type: 'result', text: String(val) });
+      }
+    }
+
+    return [...this.consoleBuffer];
+  }
+
+  /** Full execute (legacy, non-animated path) */
+  execute(code: string, state: GameState): ConsoleEntry[] {
+    this.consoleBuffer = [];
+    if (!this.ready || !this.ctx) {
+      return [{ type: 'error', text: 'Sandbox not initialized yet.' }];
+    }
+    this.rebuildContext(state);
+    const result = this.ctx.evalCode(code);
+    if (result.error) {
+      const err = this.ctx.dump(result.error);
+      result.error.dispose();
+      this.consoleBuffer.push({ type: 'error', text: String(err) });
+    } else {
+      const val = this.ctx.dump(result.value);
+      result.value.dispose();
+      if (val !== undefined) {
+        this.consoleBuffer.push({ type: 'result', text: String(val) });
+      }
+    }
+    return [...this.consoleBuffer];
+  }
+
   private rebuildContext(state: GameState): void {
     if (this.ctx) {
       this.ctx.dispose();
@@ -41,7 +111,7 @@ export class Sandbox {
     logFn.dispose();
     consoleObj.dispose();
 
-    // print (alias for console.log)
+    // print
     const printFn = ctx.newFunction('print', (...args) => {
       const texts = args.map(a => ctx.dump(a));
       this.consoleBuffer.push({ type: 'log', text: texts.map(t => String(t)).join(' ') });
@@ -49,7 +119,7 @@ export class Sandbox {
     ctx.setProp(ctx.global, 'print', printFn);
     printFn.dispose();
 
-    // game API object
+    // game API
     const gameObj = ctx.newObject();
 
     const getMoney = ctx.newFunction('getMoney', () => ctx.newNumber(state.money));
@@ -123,30 +193,6 @@ export class Sandbox {
 
     ctx.setProp(ctx.global, 'game', gameObj);
     gameObj.dispose();
-  }
-
-  execute(code: string, state: GameState): ConsoleEntry[] {
-    this.consoleBuffer = [];
-    if (!this.ready || !this.ctx) {
-      return [{ type: 'error', text: 'Sandbox not initialized yet.' }];
-    }
-
-    this.rebuildContext(state);
-
-    const result = this.ctx.evalCode(code);
-    if (result.error) {
-      const err = this.ctx.dump(result.error);
-      result.error.dispose();
-      this.consoleBuffer.push({ type: 'error', text: String(err) });
-    } else {
-      const val = this.ctx.dump(result.value);
-      result.value.dispose();
-      if (val !== undefined) {
-        this.consoleBuffer.push({ type: 'result', text: String(val) });
-      }
-    }
-
-    return [...this.consoleBuffer];
   }
 
   isReady(): boolean {

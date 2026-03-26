@@ -110,7 +110,6 @@ export class GameEngine {
     }
   }
 
-  /** Calculate ms-per-line based on hardware speed */
   private getExecutionSpeed(): number {
     const hw = this.gameState.hardware;
     switch (hw.type) {
@@ -121,7 +120,7 @@ export class GameEngine {
     }
   }
 
-  private runCode(code: string): void {
+  private runCode(_code: string): void {
     if (this.editor.isRunning()) return;
 
     if (!this.sandbox.isReady()) {
@@ -129,31 +128,62 @@ export class GameEngine {
       return;
     }
 
-    // Disable run button during execution
+    // Prepare fresh sandbox context
+    this.sandbox.beginRun(this.gameState);
+
     this.runBtn.textContent = 'RUNNING...';
     this.runBtn.style.opacity = '0.5';
     this.consoleOutput.appendSystem('--- EXECUTING ---');
 
     const speed = this.getExecutionSpeed();
 
-    // Animate line-by-line, then execute and stream output
-    this.editor.animateExecution(speed, () => {
-      const entries = this.sandbox.execute(code, this.gameState);
+    // Accumulator for multi-line statements (for loops, if/else, functions, etc.)
+    let lineBuffer: string[] = [];
 
-      // Stream output entries with a small delay between each
-      let i = 0;
-      const streamOutput = () => {
-        if (i < entries.length) {
-          this.consoleOutput.append(entries[i]!);
-          i++;
-          setTimeout(streamOutput, 30);
-        } else {
-          this.consoleOutput.appendSystem('--- DONE ---');
-          this.runBtn.textContent = 'RUN';
-          this.runBtn.style.opacity = '1';
+    this.editor.stepExecution(speed, {
+      onLine: (_lineNumber, lineText) => {
+        const trimmed = lineText.trim();
+
+        // Skip empty lines and comments — no eval needed
+        if (trimmed === '' || trimmed.startsWith('//')) {
+          return;
         }
-      };
-      streamOutput();
+
+        // Accumulate this line
+        lineBuffer.push(lineText);
+        const chunk = lineBuffer.join('\n');
+
+        // Try to eval the accumulated chunk
+        const result = this.sandbox.evalChunk(chunk);
+
+        if (result === 'incomplete') {
+          // Statement isn't complete yet (open brace, etc.) — keep accumulating
+          return;
+        }
+
+        // Statement was complete — show any output and clear the buffer
+        lineBuffer = [];
+        for (const entry of result) {
+          this.consoleOutput.append(entry);
+        }
+      },
+
+      onDone: () => {
+        // If there's leftover in the buffer, try to eval it
+        if (lineBuffer.length > 0) {
+          const chunk = lineBuffer.join('\n');
+          const result = this.sandbox.evalChunk(chunk);
+          if (result !== 'incomplete') {
+            for (const entry of result) {
+              this.consoleOutput.append(entry);
+            }
+          }
+        }
+
+        this.consoleOutput.appendSystem('--- DONE ---');
+        this.runBtn.textContent = 'RUN';
+        this.runBtn.style.opacity = '1';
+      },
     });
   }
 
@@ -168,7 +198,6 @@ export class GameEngine {
     const gridHelper = new THREE.GridHelper(50, 50, 0x003322, 0x001a11);
     this.scene.add(gridHelper);
 
-    // CPU chip
     const cpuGeometry = new THREE.BoxGeometry(2, 0.3, 2);
     const cpuMaterial = new THREE.MeshStandardMaterial({
       color: 0x00aa55,

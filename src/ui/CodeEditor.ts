@@ -16,10 +16,8 @@ for (let s of stocks) {
 print("Cash: $" + game.getMoney());
 `;
 
-// StateEffect to set which line is "executing"
 const setExecutingLine = StateEffect.define<number | null>();
 
-// Decoration for the executing line
 const executingLineDeco = Decoration.line({ class: 'cm-executing-line' });
 
 const executingLineField = StateField.define<DecorationSet>({
@@ -45,6 +43,13 @@ const executingLineField = StateField.define<DecorationSet>({
   },
   provide: f => EditorView.decorations.from(f),
 });
+
+export interface LineStepCallbacks {
+  /** Called for each line. Return value from sandbox eval is handled by the engine. */
+  onLine: (lineNumber: number, lineText: string) => void;
+  /** Called when all lines have been stepped through. */
+  onDone: () => void;
+}
 
 export class CodeEditor {
   private view: EditorView;
@@ -94,6 +99,15 @@ export class CodeEditor {
     return this.view.state.doc.toString();
   }
 
+  getLines(): string[] {
+    const doc = this.view.state.doc;
+    const lines: string[] = [];
+    for (let i = 1; i <= doc.lines; i++) {
+      lines.push(doc.line(i).text);
+    }
+    return lines;
+  }
+
   setCode(code: string): void {
     this.view.dispatch({
       changes: { from: 0, to: this.view.state.doc.length, insert: code },
@@ -105,10 +119,11 @@ export class CodeEditor {
   }
 
   /**
-   * Animate execution line-by-line, then call onComplete when done.
-   * Speed is ms per line (scales with CPU clock in-game).
+   * Step through each line with a delay.
+   * Calls onLine for every line so the engine can eval it incrementally.
+   * Calls onDone when finished.
    */
-  animateExecution(speed: number, onComplete: () => void): void {
+  stepExecution(speed: number, callbacks: LineStepCallbacks): void {
     if (this.running) return;
     this.running = true;
 
@@ -117,10 +132,9 @@ export class CodeEditor {
 
     const step = () => {
       if (currentLine > totalLines) {
-        // Clear highlight and finish
         this.clearHighlight();
         this.running = false;
-        onComplete();
+        callbacks.onDone();
         return;
       }
 
@@ -129,11 +143,14 @@ export class CodeEditor {
         effects: setExecutingLine.of(currentLine),
       });
 
-      // Scroll the executing line into view
+      // Scroll into view
       const line = this.view.state.doc.line(currentLine);
       this.view.dispatch({
         effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
       });
+
+      // Fire the callback with the line text
+      callbacks.onLine(currentLine, line.text);
 
       currentLine++;
       this.animationTimer = setTimeout(step, speed);
