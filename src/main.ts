@@ -3,9 +3,8 @@ import { GameState } from './game/GameState';
 
 async function main() {
   try {
-    const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
     const gameState = new GameState();
-    const engine = new GameEngine(canvas, gameState);
+    const engine = new GameEngine(gameState);
     await engine.init();
     engine.start();
   } catch (err) {
