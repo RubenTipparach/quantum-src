@@ -69,22 +69,29 @@ export class GameEngine {
     if (!tabBar) return;
 
     const tabs = tabBar.querySelectorAll('button');
-    const panels = ['sidebar', 'main-panel'];
+    const sidebar = document.getElementById('sidebar')!;
+    const mainPanel = document.getElementById('main-panel')!;
 
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
         const target = tab.dataset['tab'];
         if (!target) return;
+
         tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        panels.forEach(id => {
-          const panel = document.getElementById(id);
-          if (panel) {
-            if (id === target) panel.classList.add('active-tab');
-            else panel.classList.remove('active-tab');
-          }
-        });
-        requestAnimationFrame(() => this.onResize());
+
+        // Clear all states
+        sidebar.classList.remove('active-tab');
+        mainPanel.classList.remove('active-tab', 'active-tab-code', 'active-tab-output');
+
+        if (target === 'sidebar') {
+          sidebar.classList.add('active-tab');
+        } else if (target === 'code') {
+          mainPanel.classList.add('active-tab-code');
+        } else if (target === 'output') {
+          mainPanel.classList.add('active-tab-output');
+          requestAnimationFrame(() => this.onResize());
+        }
       });
     });
   }

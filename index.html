@@ -263,8 +263,37 @@
         min-height: 0;
         border: none;
       }
-      #sidebar.active-tab, #main-panel.active-tab {
+      #sidebar.active-tab {
         display: flex;
+      }
+      /* On mobile, main-panel is always flex but we hide/show children */
+      #main-panel.active-tab-code,
+      #main-panel.active-tab-output {
+        display: flex;
+      }
+
+      /* In code mode: show editor, hide bottom strip */
+      #main-panel.active-tab-code #editor-header,
+      #main-panel.active-tab-code #editor-container { display: flex; }
+      #main-panel.active-tab-code #editor-container { flex: 1; }
+      #main-panel.active-tab-code #bottom-strip { display: none; }
+
+      /* In output mode: hide editor, show bottom strip full height */
+      #main-panel.active-tab-output #editor-header { display: none; }
+      #main-panel.active-tab-output #editor-container { display: none; }
+      #main-panel.active-tab-output #bottom-strip {
+        flex: 1;
+        flex-direction: column;
+        height: auto;
+      }
+      #main-panel.active-tab-output #viewport {
+        width: 100%;
+        height: 200px;
+        border-right: none;
+        border-bottom: 1px solid #1a3a2a;
+      }
+      #main-panel.active-tab-output #console-area {
+        flex: 1;
       }
 
       #sidebar { border-right: none; }
@@ -274,16 +303,6 @@
       .stock-row { font-size: 12px; padding: 4px 0; }
       .stock-row .sym { width: 60px; }
 
-      #bottom-strip {
-        flex-direction: column;
-        height: auto;
-      }
-      #viewport {
-        width: 100%;
-        height: 150px;
-        border-right: none;
-        border-bottom: 1px solid #1a3a2a;
-      }
       #console-panel { min-height: 100px; }
       #editor-container .cm-editor { font-size: 14px; }
       #run-btn { padding: 8px 24px; font-size: 13px; }
@@ -293,8 +312,9 @@
 <body>
   <div id="app">
     <div id="tab-bar">
-      <button id="tab-status" class="active" data-tab="sidebar">Status</button>
-      <button id="tab-code" data-tab="main-panel">Code</button>
+      <button class="active" data-tab="sidebar">Status</button>
+      <button data-tab="code">Code</button>
+      <button data-tab="output">Output</button>
     </div>
     <div id="sidebar" class="active-tab"></div>
     <div id="main-panel" class="active-tab">
