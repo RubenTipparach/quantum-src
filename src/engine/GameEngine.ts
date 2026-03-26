@@ -4,6 +4,7 @@ import { Sandbox } from '../game/programming/Sandbox';
 import { CodeEditor } from '../ui/CodeEditor';
 import { ConsoleOutput } from '../ui/ConsoleOutput';
 import { Sidebar } from '../ui/Sidebar';
+import { VFXSystem } from './VFXSystem';
 
 export class GameEngine {
   private scene: THREE.Scene;
@@ -16,6 +17,7 @@ export class GameEngine {
   private sidebar: Sidebar;
   private editor: CodeEditor;
   private runBtn: HTMLButtonElement;
+  private vfx: VFXSystem;
 
   constructor(canvas: HTMLCanvasElement, gameState: GameState) {
     this.gameState = gameState;
@@ -50,13 +52,13 @@ export class GameEngine {
 
     // Three.js
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a1a);
+    this.scene.background = new THREE.Color(0x050510);
 
     const viewport = document.getElementById('viewport')!;
-    const w = viewport.clientWidth || window.innerWidth;
-    const h = viewport.clientHeight || window.innerHeight;
-    this.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
-    this.camera.position.set(0, 5, 10);
+    const w = viewport.clientWidth || 280;
+    const h = viewport.clientHeight || 220;
+    this.camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 100);
+    this.camera.position.set(0, 3, 5);
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -64,6 +66,8 @@ export class GameEngine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     this.setupScene();
+    this.vfx = new VFXSystem(this.scene);
+
     window.addEventListener('resize', () => this.onResize());
   }
 
@@ -72,7 +76,7 @@ export class GameEngine {
     if (!tabBar) return;
 
     const tabs = tabBar.querySelectorAll('button');
-    const panels = ['sidebar', 'viewport', 'right-panel'];
+    const panels = ['sidebar', 'main-panel'];
 
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
@@ -93,9 +97,7 @@ export class GameEngine {
           }
         });
 
-        if (target === 'viewport') {
-          requestAnimationFrame(() => this.onResize());
-        }
+        requestAnimationFrame(() => this.onResize());
       });
     });
   }
@@ -128,48 +130,46 @@ export class GameEngine {
       return;
     }
 
-    // Prepare fresh sandbox context
     this.sandbox.beginRun(this.gameState);
 
     this.runBtn.textContent = 'RUNNING...';
     this.runBtn.style.opacity = '0.5';
     this.consoleOutput.appendSystem('--- EXECUTING ---');
+    this.vfx.trigger('run');
 
     const speed = this.getExecutionSpeed();
-
-    // Accumulator for multi-line statements (for loops, if/else, functions, etc.)
     let lineBuffer: string[] = [];
 
     this.editor.stepExecution(speed, {
       onLine: (_lineNumber, lineText) => {
         const trimmed = lineText.trim();
 
-        // Skip empty lines and comments — no eval needed
         if (trimmed === '' || trimmed.startsWith('//')) {
           return;
         }
 
-        // Accumulate this line
         lineBuffer.push(lineText);
         const chunk = lineBuffer.join('\n');
 
-        // Try to eval the accumulated chunk
         const result = this.sandbox.evalChunk(chunk);
 
         if (result === 'incomplete') {
-          // Statement isn't complete yet (open brace, etc.) — keep accumulating
           return;
         }
 
-        // Statement was complete — show any output and clear the buffer
+        // Detect what functions were called in this line for VFX
+        this.detectVFX(trimmed);
+
         lineBuffer = [];
         for (const entry of result) {
           this.consoleOutput.append(entry);
+          if (entry.type === 'error') {
+            this.vfx.trigger('error');
+          }
         }
       },
 
       onDone: () => {
-        // If there's leftover in the buffer, try to eval it
         if (lineBuffer.length > 0) {
           const chunk = lineBuffer.join('\n');
           const result = this.sandbox.evalChunk(chunk);
@@ -183,31 +183,37 @@ export class GameEngine {
         this.consoleOutput.appendSystem('--- DONE ---');
         this.runBtn.textContent = 'RUN';
         this.runBtn.style.opacity = '1';
+        this.vfx.trigger('done');
       },
     });
   }
 
+  private detectVFX(line: string): void {
+    if (line.includes('game.buy(') || line.includes('game.buy (')) {
+      this.vfx.trigger('buy');
+    }
+    if (line.includes('game.sell(') || line.includes('game.sell (')) {
+      this.vfx.trigger('sell');
+    }
+    if (line.includes('game.getStocks(') || line.includes('game.getStocks (')) {
+      this.vfx.trigger('getStocks');
+    }
+    if (line.includes('print(') || line.includes('console.log(')) {
+      this.vfx.trigger('print');
+    }
+  }
+
   private setupScene(): void {
-    const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
+    const ambientLight = new THREE.AmbientLight(0x303050, 0.6);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x00ff88, 1);
-    dirLight.position.set(5, 10, 5);
+    const dirLight = new THREE.DirectionalLight(0x00ff88, 0.8);
+    dirLight.position.set(3, 5, 3);
     this.scene.add(dirLight);
 
-    const gridHelper = new THREE.GridHelper(50, 50, 0x003322, 0x001a11);
+    // Small grid floor
+    const gridHelper = new THREE.GridHelper(10, 10, 0x002215, 0x001108);
     this.scene.add(gridHelper);
-
-    const cpuGeometry = new THREE.BoxGeometry(2, 0.3, 2);
-    const cpuMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00aa55,
-      emissive: 0x003311,
-      metalness: 0.8,
-      roughness: 0.2,
-    });
-    const cpuMesh = new THREE.Mesh(cpuGeometry, cpuMaterial);
-    cpuMesh.position.y = 0.15;
-    this.scene.add(cpuMesh);
   }
 
   private onResize(): void {
@@ -225,6 +231,7 @@ export class GameEngine {
       const delta = this.clock.getDelta();
       this.gameState.update(delta);
       this.sidebar.update();
+      this.vfx.update(delta);
       this.renderer.render(this.scene, this.camera);
     };
     animate();

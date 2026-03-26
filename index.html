@@ -8,10 +8,10 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background: #0a0a0f; color: #00ff88; font-family: 'Courier New', monospace; font-size: 13px; }
 
-    /* ========== DESKTOP: 3-column ========== */
+    /* ========== DESKTOP: 2-column (sidebar | main) ========== */
     #app {
       display: grid;
-      grid-template-columns: 240px 1fr 420px;
+      grid-template-columns: 240px 1fr;
       grid-template-rows: 1fr;
       width: 100vw;
       height: 100vh;
@@ -131,20 +131,12 @@
     .portfolio-row .shares { color: #88bbaa; }
     .portfolio-row .value { color: #44dd88; }
 
-    /* --- Center: 3D Viewport --- */
-    #viewport {
-      position: relative;
-      overflow: hidden;
-      background: #050510;
-    }
-    #game-canvas { width: 100%; height: 100%; display: block; }
-
-    /* --- Right Panel: Editor + Console --- */
-    #right-panel {
+    /* --- Main Panel (editor + bottom) --- */
+    #main-panel {
       display: flex;
       flex-direction: column;
-      background: #0a0a12;
-      border-left: 1px solid #1a3a2a;
+      min-width: 0;
+      min-height: 0;
     }
 
     #editor-header {
@@ -181,13 +173,37 @@
     #editor-container .cm-editor { height: 100%; font-size: 13px; }
     #editor-container .cm-editor .cm-scroller { overflow: auto; }
 
+    /* --- Bottom strip: viewport + console --- */
+    #bottom-strip {
+      display: flex;
+      height: 220px;
+      flex-shrink: 0;
+      border-top: 1px solid #1a3a2a;
+    }
+
+    #viewport {
+      position: relative;
+      overflow: hidden;
+      background: #050510;
+      width: 280px;
+      flex-shrink: 0;
+      border-right: 1px solid #1a3a2a;
+    }
+    #game-canvas { width: 100%; height: 100%; display: block; }
+
+    #console-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
     #console-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 4px 10px;
       background: #080810;
-      border-top: 1px solid #1a3a2a;
       border-bottom: 1px solid #111;
       font-size: 10px;
       text-transform: uppercase;
@@ -208,8 +224,7 @@
     #console-header button:hover { color: #00ff88; border-color: #00ff88; }
 
     #console-panel {
-      height: 200px;
-      min-height: 80px;
+      flex: 1;
       background: #000;
       overflow-y: auto;
       padding: 6px 10px;
@@ -223,29 +238,16 @@
     #console-panel .system { color: #557799; }
     #console-panel .result { color: #00ff88; font-weight: bold; }
 
-    /* ========== TABLET: 2-column ========== */
+    /* ========== TABLET ========== */
     @media (max-width: 1024px) {
       #app {
         grid-template-columns: 200px 1fr;
-        grid-template-rows: 1fr 1fr;
       }
-      #sidebar {
-        grid-row: 1 / 3;
-      }
-      #viewport {
-        grid-column: 2;
-        grid-row: 1;
-      }
-      #right-panel {
-        grid-column: 2;
-        grid-row: 2;
-        border-left: none;
-        border-top: 1px solid #1a3a2a;
-      }
-      #console-panel { height: 120px; }
+      #viewport { width: 200px; }
+      #bottom-strip { height: 180px; }
     }
 
-    /* ========== MOBILE: tabbed single-panel ========== */
+    /* ========== MOBILE: tabbed ========== */
     @media (max-width: 640px) {
       #app {
         display: flex;
@@ -253,24 +255,18 @@
         grid-template-columns: unset;
         grid-template-rows: unset;
       }
-      #tab-bar {
-        display: flex;
-      }
-      /* Hide inactive panels */
-      #sidebar, #viewport, #right-panel {
+      #tab-bar { display: flex; }
+
+      #sidebar, #main-panel {
         display: none;
         flex: 1;
         min-height: 0;
         border: none;
       }
-      #sidebar.active-tab, #viewport.active-tab, #right-panel.active-tab {
+      #sidebar.active-tab, #main-panel.active-tab {
         display: flex;
       }
-      #viewport.active-tab {
-        display: block;
-      }
 
-      /* Mobile sidebar tweaks */
       #sidebar { border-right: none; }
       .sb-header { font-size: 14px; padding: 8px 12px; }
       .sidebar-btn { padding: 10px 12px; font-size: 13px; }
@@ -278,13 +274,18 @@
       .stock-row { font-size: 12px; padding: 4px 0; }
       .stock-row .sym { width: 60px; }
 
-      /* Mobile editor tweaks */
-      #right-panel { border-left: none; }
-      #editor-container .cm-editor { font-size: 14px; }
-      #console-panel {
-        height: 150px;
-        font-size: 12px;
+      #bottom-strip {
+        flex-direction: column;
+        height: auto;
       }
+      #viewport {
+        width: 100%;
+        height: 150px;
+        border-right: none;
+        border-bottom: 1px solid #1a3a2a;
+      }
+      #console-panel { min-height: 100px; }
+      #editor-container .cm-editor { font-size: 14px; }
       #run-btn { padding: 8px 24px; font-size: 13px; }
     }
   </style>
@@ -293,24 +294,27 @@
   <div id="app">
     <div id="tab-bar">
       <button id="tab-status" class="active" data-tab="sidebar">Status</button>
-      <button id="tab-view" data-tab="viewport">View</button>
-      <button id="tab-code" data-tab="right-panel">Code</button>
+      <button id="tab-code" data-tab="main-panel">Code</button>
     </div>
     <div id="sidebar" class="active-tab"></div>
-    <div id="viewport" class="active-tab">
-      <canvas id="game-canvas"></canvas>
-    </div>
-    <div id="right-panel" class="active-tab">
+    <div id="main-panel" class="active-tab">
       <div id="editor-header">
         <span class="title"><span>program.js</span> — Ctrl+Enter to run</span>
         <button id="run-btn">RUN</button>
       </div>
       <div id="editor-container"></div>
-      <div id="console-header">
-        <span>Output</span>
-        <button id="clear-console-btn">Clear</button>
+      <div id="bottom-strip">
+        <div id="viewport">
+          <canvas id="game-canvas"></canvas>
+        </div>
+        <div id="console-area">
+          <div id="console-header">
+            <span>Output</span>
+            <button id="clear-console-btn">Clear</button>
+          </div>
+          <div id="console-panel"></div>
+        </div>
       </div>
-      <div id="console-panel"></div>
     </div>
   </div>
   <script type="module" src="./src/main.ts"></script>

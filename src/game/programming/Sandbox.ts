@@ -99,12 +99,19 @@ export class Sandbox {
     this.injectAPI(this.ctx, state);
   }
 
+  private stringify(val: unknown): string {
+    if (val === null) return 'null';
+    if (val === undefined) return 'undefined';
+    if (typeof val === 'object') return JSON.stringify(val);
+    return String(val);
+  }
+
   private injectAPI(ctx: QuickJSContext, state: GameState): void {
     // console.log
     const consoleObj = ctx.newObject();
     const logFn = ctx.newFunction('log', (...args) => {
-      const texts = args.map(a => ctx.dump(a));
-      this.consoleBuffer.push({ type: 'log', text: texts.map(t => String(t)).join(' ') });
+      const texts = args.map(a => this.stringify(ctx.dump(a)));
+      this.consoleBuffer.push({ type: 'log', text: texts.join(' ') });
     });
     ctx.setProp(consoleObj, 'log', logFn);
     ctx.setProp(ctx.global, 'console', consoleObj);
@@ -113,8 +120,8 @@ export class Sandbox {
 
     // print
     const printFn = ctx.newFunction('print', (...args) => {
-      const texts = args.map(a => ctx.dump(a));
-      this.consoleBuffer.push({ type: 'log', text: texts.map(t => String(t)).join(' ') });
+      const texts = args.map(a => this.stringify(ctx.dump(a)));
+      this.consoleBuffer.push({ type: 'log', text: texts.join(' ') });
     });
     ctx.setProp(ctx.global, 'print', printFn);
     printFn.dispose();
