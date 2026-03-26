@@ -44,10 +44,10 @@ const executingLineField = StateField.define<DecorationSet>({
   provide: f => EditorView.decorations.from(f),
 });
 
-export interface LineStepCallbacks {
-  /** Called for each line. Return value from sandbox eval is handled by the engine. */
-  onLine: (lineNumber: number, lineText: string) => void;
-  /** Called when all lines have been stepped through. */
+export interface TraceStepCallback {
+  /** Called for each step in the execution trace */
+  onStep: (stepIndex: number, lineNumber: number) => void;
+  /** Called when the trace replay is complete */
   onDone: () => void;
 }
 
@@ -119,40 +119,42 @@ export class CodeEditor {
   }
 
   /**
-   * Step through each line with a delay.
-   * Calls onLine for every line so the engine can eval it incrementally.
-   * Calls onDone when finished.
+   * Replay an execution trace — the highlight jumps to each line
+   * in the exact order they actually executed (loops repeat, etc).
    */
-  stepExecution(speed: number, callbacks: LineStepCallbacks): void {
+  replayTrace(trace: number[], speed: number, callbacks: TraceStepCallback): void {
     if (this.running) return;
     this.running = true;
 
-    const totalLines = this.view.state.doc.lines;
-    let currentLine = 1;
+    let stepIndex = 0;
 
     const step = () => {
-      if (currentLine > totalLines) {
+      if (stepIndex >= trace.length) {
         this.clearHighlight();
         this.running = false;
         callbacks.onDone();
         return;
       }
 
-      // Highlight current line
+      const lineNum = trace[stepIndex]!;
+
+      // Highlight the line
       this.view.dispatch({
-        effects: setExecutingLine.of(currentLine),
+        effects: setExecutingLine.of(lineNum),
       });
 
       // Scroll into view
-      const line = this.view.state.doc.line(currentLine);
-      this.view.dispatch({
-        effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
-      });
+      const doc = this.view.state.doc;
+      if (lineNum >= 1 && lineNum <= doc.lines) {
+        const line = doc.line(lineNum);
+        this.view.dispatch({
+          effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
+        });
+      }
 
-      // Fire the callback with the line text
-      callbacks.onLine(currentLine, line.text);
+      callbacks.onStep(stepIndex, lineNum);
 
-      currentLine++;
+      stepIndex++;
       this.animationTimer = setTimeout(step, speed);
     };
 

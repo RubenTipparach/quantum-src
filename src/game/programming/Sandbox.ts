@@ -6,11 +6,47 @@ export interface ConsoleEntry {
   text: string;
 }
 
+export interface ExecutionTrace {
+  /** Ordered list of line numbers as they were actually executed */
+  steps: number[];
+  /** Console outputs, each tagged with the trace step index it occurred at */
+  outputs: { entry: ConsoleEntry; stepIndex: number }[];
+  /** Error that halted execution, if any */
+  error?: ConsoleEntry;
+}
+
+/** Continuation tokens — lines starting with these are not statement starts */
+const CONTINUATION_RE = /^[)\],.+\-?:&|]/;
+
+/**
+ * Insert __tick(lineNum) before each statement-starting line.
+ * This records the actual execution order including loop iterations.
+ */
+function instrumentCode(code: string): string {
+  const lines = code.split('\n');
+  return lines.map((line, i) => {
+    const lineNum = i + 1;
+    const trimmed = line.trim();
+
+    // Always tick empty lines and comments (moves cursor through them)
+    if (trimmed === '') return `__tick(${lineNum});`;
+    if (trimmed.startsWith('//')) return `__tick(${lineNum}); ${line}`;
+
+    // Don't tick continuation lines (would break syntax)
+    if (CONTINUATION_RE.test(trimmed)) return line;
+
+    // Tick everything else (statements, closing braces, else, etc.)
+    return `__tick(${lineNum}); ${line}`;
+  }).join('\n');
+}
+
 export class Sandbox {
   private runtime: QuickJSRuntime | null = null;
   private ctx: QuickJSContext | null = null;
   private ready = false;
   private consoleBuffer: ConsoleEntry[] = [];
+  private executionTrace: number[] = [];
+  private outputMap: { entry: ConsoleEntry; stepIndex: number }[] = [];
 
   async init(state: GameState): Promise<void> {
     const QuickJS = await getQuickJS();
@@ -21,28 +57,61 @@ export class Sandbox {
     this.ready = true;
   }
 
-  execute(code: string, state: GameState): ConsoleEntry[] {
+  /**
+   * Execute the program with instrumentation to capture the full execution trace.
+   * Returns the trace: which lines executed in what order, with outputs tagged.
+   */
+  executeTraced(code: string, state: GameState): ExecutionTrace {
     this.consoleBuffer = [];
+    this.executionTrace = [];
+    this.outputMap = [];
+
     if (!this.ready) {
-      return [{ type: 'error', text: 'Sandbox not initialized yet.' }];
+      return {
+        steps: [],
+        outputs: [],
+        error: { type: 'error', text: 'Sandbox not initialized yet.' },
+      };
     }
 
     this.rebuildContext(state);
+    this.injectTracing(this.ctx!);
 
-    const result = this.ctx!.evalCode(code, '<user>');
+    const instrumented = instrumentCode(code);
+    const result = this.ctx!.evalCode(instrumented, '<user>');
+
+    let error: ConsoleEntry | undefined;
     if (result.error) {
       const err = this.ctx!.dump(result.error);
       result.error.dispose();
-      this.consoleBuffer.push({ type: 'error', text: String(err) });
+      error = { type: 'error', text: String(err) };
     } else {
       const val = this.ctx!.dump(result.value);
       result.value.dispose();
       if (val !== undefined) {
-        this.consoleBuffer.push({ type: 'result', text: this.stringify(val) });
+        // Tag the final result at the last trace step
+        this.outputMap.push({
+          entry: { type: 'result', text: this.stringify(val) },
+          stepIndex: this.executionTrace.length - 1,
+        });
       }
     }
 
-    return [...this.consoleBuffer];
+    return {
+      steps: [...this.executionTrace],
+      outputs: [...this.outputMap],
+      error,
+    };
+  }
+
+  private injectTracing(ctx: QuickJSContext): void {
+    // __tick(lineNum) — called before each statement, records execution order
+    const tickFn = ctx.newFunction('__tick', (lineHandle) => {
+      const line = ctx.dump(lineHandle) as number;
+      this.executionTrace.push(line);
+    });
+    ctx.setProp(ctx.global, '__tick', tickFn);
+    tickFn.dispose();
   }
 
   private rebuildContext(state: GameState): void {
@@ -64,7 +133,9 @@ export class Sandbox {
     const consoleObj = ctx.newObject();
     const logFn = ctx.newFunction('log', (...args) => {
       const texts = args.map(a => this.stringify(ctx.dump(a)));
-      this.consoleBuffer.push({ type: 'log', text: texts.join(' ') });
+      const entry: ConsoleEntry = { type: 'log', text: texts.join(' ') };
+      this.consoleBuffer.push(entry);
+      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
     });
     ctx.setProp(consoleObj, 'log', logFn);
     ctx.setProp(ctx.global, 'console', consoleObj);
@@ -73,7 +144,9 @@ export class Sandbox {
 
     const printFn = ctx.newFunction('print', (...args) => {
       const texts = args.map(a => this.stringify(ctx.dump(a)));
-      this.consoleBuffer.push({ type: 'log', text: texts.join(' ') });
+      const entry: ConsoleEntry = { type: 'log', text: texts.join(' ') };
+      this.consoleBuffer.push(entry);
+      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
     });
     ctx.setProp(ctx.global, 'print', printFn);
     printFn.dispose();
@@ -116,7 +189,10 @@ export class Sandbox {
       state.money -= cost;
       const current = state.portfolio.get(stock.symbol) ?? 0;
       state.portfolio.set(stock.symbol, current + qty);
-      return ctx.newString(`Bought ${qty} ${stock.symbol} @ $${stock.price.toFixed(2)}`);
+      const entry: ConsoleEntry = { type: 'log', text: `Bought ${qty} ${stock.symbol} @ $${stock.price.toFixed(2)}` };
+      this.consoleBuffer.push(entry);
+      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
+      return ctx.newString(entry.text);
     });
     ctx.setProp(gameObj, 'buy', buyFn);
     buyFn.dispose();
@@ -134,7 +210,10 @@ export class Sandbox {
       if (!stock) return ctx.newString(`Unknown stock: ${sym}`);
       state.money += stock.price * qty;
       state.portfolio.set(sym, owned - qty);
-      return ctx.newString(`Sold ${qty} ${sym} @ $${stock.price.toFixed(2)}`);
+      const entry: ConsoleEntry = { type: 'log', text: `Sold ${qty} ${sym} @ $${stock.price.toFixed(2)}` };
+      this.consoleBuffer.push(entry);
+      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
+      return ctx.newString(entry.text);
     });
     ctx.setProp(gameObj, 'sell', sellFn);
     sellFn.dispose();

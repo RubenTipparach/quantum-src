@@ -1,21 +1,10 @@
 import * as THREE from 'three';
 import type { GameState } from '../game/GameState';
-import { Sandbox, type ConsoleEntry } from '../game/programming/Sandbox';
+import { Sandbox } from '../game/programming/Sandbox';
 import { CodeEditor } from '../ui/CodeEditor';
 import { ConsoleOutput } from '../ui/ConsoleOutput';
 import { Sidebar } from '../ui/Sidebar';
 import { VFXSystem } from './VFXSystem';
-
-/** Check if a source line would produce output when executed */
-function isOutputLine(line: string): boolean {
-  const t = line.trim();
-  return (
-    t.includes('print(') || t.includes('print (') ||
-    t.includes('console.log(') || t.includes('console.log (') ||
-    t.includes('game.buy(') || t.includes('game.sell(') ||
-    t.includes('game.getPortfolio(')
-  );
-}
 
 export class GameEngine {
   private scene: THREE.Scene;
@@ -110,7 +99,8 @@ export class GameEngine {
     }
   }
 
-  private getExecutionSpeed(): number {
+  /** Ms per trace step — scales with hardware */
+  private getStepDelay(): number {
     const hw = this.gameState.hardware;
     switch (hw.type) {
       case 'cpu': return Math.max(20, 150 - hw.clockSpeed * 5);
@@ -127,40 +117,52 @@ export class GameEngine {
       return;
     }
 
-    // Execute the full program in one shot (correct let/const scoping)
-    const allEntries = this.sandbox.execute(code, this.gameState);
+    // Execute fully, get the trace
+    const trace = this.sandbox.executeTraced(code, this.gameState);
 
-    // Split into log/result entries (shown during animation) and errors (shown at the line)
-    const outputQueue: ConsoleEntry[] = [...allEntries];
+    if (trace.steps.length === 0 && trace.error) {
+      this.consoleOutput.appendError(trace.error.text);
+      return;
+    }
 
     this.runBtn.textContent = 'RUNNING...';
     this.runBtn.style.opacity = '0.5';
     this.consoleOutput.appendSystem('--- EXECUTING ---');
     this.vfx.trigger('run');
 
-    const speed = this.getExecutionSpeed();
+    const speed = this.getStepDelay();
+    const lines = this.editor.getLines();
 
-    this.editor.stepExecution(speed, {
-      onLine: (_lineNumber, lineText) => {
+    // Build a lookup: stepIndex → outputs produced at that step
+    const outputsByStep = new Map<number, typeof trace.outputs>();
+    for (const o of trace.outputs) {
+      const arr = outputsByStep.get(o.stepIndex) ?? [];
+      arr.push(o);
+      outputsByStep.set(o.stepIndex, arr);
+    }
+
+    this.editor.replayTrace(trace.steps, speed, {
+      onStep: (stepIndex, lineNumber) => {
+        // VFX based on source line
+        const lineText = lines[lineNumber - 1] ?? '';
         const trimmed = lineText.trim();
-        if (trimmed === '' || trimmed.startsWith('//')) return;
+        if (trimmed !== '') this.detectVFX(trimmed);
 
-        // Trigger VFX
-        this.detectVFX(trimmed);
-
-        // If this line produces output, drain the next entry from the queue
-        if (isOutputLine(trimmed) && outputQueue.length > 0) {
-          const entry = outputQueue.shift()!;
-          this.consoleOutput.append(entry);
-          if (entry.type === 'error') this.vfx.trigger('error');
+        // Show any outputs produced at this trace step
+        const outputs = outputsByStep.get(stepIndex);
+        if (outputs) {
+          for (const o of outputs) {
+            this.consoleOutput.append(o.entry);
+            if (o.entry.type === 'error') this.vfx.trigger('error');
+          }
         }
       },
 
       onDone: () => {
-        // Flush anything remaining (errors, final result, loop outputs, etc.)
-        for (const entry of outputQueue) {
-          this.consoleOutput.append(entry);
-          if (entry.type === 'error') this.vfx.trigger('error');
+        // Show execution error if any
+        if (trace.error) {
+          this.consoleOutput.append(trace.error);
+          this.vfx.trigger('error');
         }
 
         this.consoleOutput.appendSystem('--- DONE ---');
