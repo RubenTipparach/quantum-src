@@ -7,6 +7,7 @@ export interface ResearchNode {
   prerequisites: string[];
   unlocked: boolean;
   researched: boolean;
+  yearAdvance: number;
 }
 
 export function createResearchTree(): ResearchNode[] {
@@ -21,6 +22,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: [],
       unlocked: true,
       researched: false,
+      yearAdvance: 2,
     },
     {
       id: 'market_analysis',
@@ -31,6 +33,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['basic_trading'],
       unlocked: false,
       researched: false,
+      yearAdvance: 3,
     },
     {
       id: 'overclock',
@@ -41,6 +44,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['basic_trading'],
       unlocked: false,
       researched: false,
+      yearAdvance: 3,
     },
     {
       id: 'multi_core',
@@ -51,6 +55,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['overclock'],
       unlocked: false,
       researched: false,
+      yearAdvance: 5,
     },
 
     // Crypto era — GPU
@@ -63,6 +68,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['multi_core'],
       unlocked: false,
       researched: false,
+      yearAdvance: 5,
     },
     {
       id: 'gpu_compute',
@@ -73,6 +79,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['hash_mining'],
       unlocked: false,
       researched: false,
+      yearAdvance: 8,
     },
     {
       id: 'gpu_farm',
@@ -83,6 +90,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['gpu_compute'],
       unlocked: false,
       researched: false,
+      yearAdvance: 10,
     },
     {
       id: 'blockchain_exploit',
@@ -93,6 +101,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['gpu_compute', 'market_analysis'],
       unlocked: false,
       researched: false,
+      yearAdvance: 5,
     },
 
     // Quantum era
@@ -105,6 +114,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['gpu_farm'],
       unlocked: false,
       researched: false,
+      yearAdvance: 20,
     },
     {
       id: 'encryption_breaking',
@@ -115,6 +125,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['quantum_basics'],
       unlocked: false,
       researched: false,
+      yearAdvance: 25,
     },
     {
       id: 'market_collapse',
@@ -125,6 +136,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['encryption_breaking', 'blockchain_exploit'],
       unlocked: false,
       researched: false,
+      yearAdvance: 30,
     },
 
     // Sub-atomic era
@@ -137,6 +149,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['market_collapse'],
       unlocked: false,
       researched: false,
+      yearAdvance: 50,
     },
     {
       id: 'energy_synthesis',
@@ -147,6 +160,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['subatomic_compute'],
       unlocked: false,
       researched: false,
+      yearAdvance: 40,
     },
     {
       id: 'megastructure_foundation',
@@ -157,6 +171,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['energy_synthesis'],
       unlocked: false,
       researched: false,
+      yearAdvance: 60,
     },
     {
       id: 'post_scarcity',
@@ -167,6 +182,7 @@ export function createResearchTree(): ResearchNode[] {
       prerequisites: ['megastructure_foundation'],
       unlocked: false,
       researched: false,
+      yearAdvance: 100,
     },
   ];
 }

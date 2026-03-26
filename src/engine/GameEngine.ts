@@ -15,6 +15,7 @@ export class GameEngine {
   private consoleOutput: ConsoleOutput;
   private sidebar: Sidebar;
   private editor: CodeEditor;
+  private runBtn: HTMLButtonElement;
 
   constructor(canvas: HTMLCanvasElement, gameState: GameState) {
     this.gameState = gameState;
@@ -39,7 +40,8 @@ export class GameEngine {
     this.editor = new CodeEditor(editorContainer, (code) => this.runCode(code));
 
     // Run button
-    document.getElementById('run-btn')!.addEventListener('click', () => {
+    this.runBtn = document.getElementById('run-btn') as HTMLButtonElement;
+    this.runBtn.addEventListener('click', () => {
       this.runCode(this.editor.getCode());
     });
 
@@ -77,11 +79,9 @@ export class GameEngine {
         const target = tab.dataset['tab'];
         if (!target) return;
 
-        // Update tab active state
         tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
 
-        // Show/hide panels
         panels.forEach(id => {
           const panel = document.getElementById(id);
           if (panel) {
@@ -93,7 +93,6 @@ export class GameEngine {
           }
         });
 
-        // If switching to viewport, resize the renderer
         if (target === 'viewport') {
           requestAnimationFrame(() => this.onResize());
         }
@@ -111,14 +110,51 @@ export class GameEngine {
     }
   }
 
+  /** Calculate ms-per-line based on hardware speed */
+  private getExecutionSpeed(): number {
+    const hw = this.gameState.hardware;
+    switch (hw.type) {
+      case 'cpu': return Math.max(20, 150 - hw.clockSpeed * 5);
+      case 'gpu': return Math.max(10, 60 - hw.cores * 0.1);
+      case 'quantum': return 5;
+      case 'subatomic': return 2;
+    }
+  }
+
   private runCode(code: string): void {
+    if (this.editor.isRunning()) return;
+
     if (!this.sandbox.isReady()) {
       this.consoleOutput.appendError('Sandbox still loading...');
       return;
     }
-    this.consoleOutput.appendSystem('--- RUN ---');
-    const entries = this.sandbox.execute(code, this.gameState);
-    this.consoleOutput.appendEntries(entries);
+
+    // Disable run button during execution
+    this.runBtn.textContent = 'RUNNING...';
+    this.runBtn.style.opacity = '0.5';
+    this.consoleOutput.appendSystem('--- EXECUTING ---');
+
+    const speed = this.getExecutionSpeed();
+
+    // Animate line-by-line, then execute and stream output
+    this.editor.animateExecution(speed, () => {
+      const entries = this.sandbox.execute(code, this.gameState);
+
+      // Stream output entries with a small delay between each
+      let i = 0;
+      const streamOutput = () => {
+        if (i < entries.length) {
+          this.consoleOutput.append(entries[i]!);
+          i++;
+          setTimeout(streamOutput, 30);
+        } else {
+          this.consoleOutput.appendSystem('--- DONE ---');
+          this.runBtn.textContent = 'RUN';
+          this.runBtn.style.opacity = '1';
+        }
+      };
+      streamOutput();
+    });
   }
 
   private setupScene(): void {

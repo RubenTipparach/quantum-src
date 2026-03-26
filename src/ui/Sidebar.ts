@@ -11,7 +11,6 @@ export class Sidebar {
     this.el = el;
     this.state = state;
     this.console = console;
-    // Snapshot initial prices
     for (const s of state.stockMarket.stocks) {
       this.prevPrices.set(s.symbol, s.price);
     }
@@ -42,41 +41,12 @@ export class Sidebar {
       </div>
 
       <div class="sb-section">
-        <h3>Actions</h3>
-        <button class="sidebar-btn" id="btn-advance1">Advance 1 Year</button>
-        <button class="sidebar-btn" id="btn-advance5">Advance 5 Years</button>
-        <button class="sidebar-btn" id="btn-advance25">Advance 25 Years</button>
-      </div>
-
-      <div class="sb-section">
         <h3>Research Tree</h3>
         <div id="sb-research"></div>
       </div>
     `;
 
-    this.bindButtons();
     this.update();
-  }
-
-  private bindButtons(): void {
-    const bind = (id: string, fn: () => void) => {
-      this.el.querySelector(`#${id}`)?.addEventListener('click', fn);
-    };
-
-    bind('btn-advance1', () => {
-      this.state.advanceYear(1);
-      this.console.appendSystem(`Year ${this.state.year}. Era: ${this.state.getEraName()}`);
-    });
-
-    bind('btn-advance5', () => {
-      this.state.advanceYear(5);
-      this.console.appendSystem(`Year ${this.state.year}. Era: ${this.state.getEraName()}`);
-    });
-
-    bind('btn-advance25', () => {
-      this.state.advanceYear(25);
-      this.console.appendSystem(`Year ${this.state.year}. Era: ${this.state.getEraName()}`);
-    });
   }
 
   update(): void {
@@ -114,7 +84,6 @@ export class Sidebar {
       </div>`;
     }).join('');
 
-    // Update prev prices for next tick
     for (const st of this.state.stockMarket.stocks) {
       this.prevPrices.set(st.symbol, st.price);
     }
@@ -162,10 +131,11 @@ export class Sidebar {
 
     for (const n of available) {
       const canAfford = s.money >= n.cost;
-      const cls = canAfford ? 'sidebar-btn research-btn' : 'sidebar-btn research-btn';
       const style = canAfford ? '' : 'opacity:0.6;';
-      html.push(`<button class="${cls}" style="${style}" data-id="${n.id}" title="${n.description}">
-        ${n.name} <span class="cost">$${n.cost.toLocaleString()}</span>
+      html.push(`<button class="sidebar-btn research-btn" style="${style}" data-id="${n.id}" title="${n.description}">
+        ${n.name}
+        <span class="cost">$${n.cost.toLocaleString()}</span>
+        <span class="year-advance">+${n.yearAdvance}yr</span>
       </button>`);
     }
 
@@ -193,6 +163,10 @@ export class Sidebar {
         }
         s.money -= node.cost;
         node.researched = true;
+
+        // Advance time
+        s.advanceYear(node.yearAdvance);
+
         // Unlock dependents
         for (const other of s.researchTree) {
           if (!other.unlocked && other.prerequisites.every(
@@ -203,6 +177,7 @@ export class Sidebar {
         }
         this.console.appendSystem(`Researched: ${node.name}!`);
         this.console.appendLog(node.description);
+        this.console.appendSystem(`${node.yearAdvance} years pass... Now year ${s.year}. Era: ${s.getEraName()}`);
       });
     });
   }
