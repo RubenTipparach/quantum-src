@@ -65,7 +65,7 @@ export class StockChart {
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
-    const padding = { top: 38, right: 60, bottom: 36, left: 6 };
+    const padding = { top: 24, right: 60, bottom: 36, left: 6 };
     const chartW = w - padding.left - padding.right;
     const volumeH = 20;
     const chartH = h - padding.top - padding.bottom - volumeH;
