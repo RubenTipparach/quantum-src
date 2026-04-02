@@ -3,6 +3,7 @@ import type { ResearchNode } from './research/ResearchTree';
 import { createResearchTree } from './research/ResearchTree';
 import type { ComputeHardware } from './Types';
 import { StockMarket } from './economy/StockMarket';
+import { NewsFeed } from './economy/NewsFeed';
 import { Shop } from './shop/Shop';
 import type { Mission } from './missions/Missions';
 import { createMissions } from './missions/Missions';
@@ -33,12 +34,13 @@ export class GameState {
   researchTree: ResearchNode[];
   eras: EraRegistry;
   stockMarket: StockMarket;
+  newsFeed: NewsFeed;
   portfolio: Map<string, number> = new Map();
   shop: Shop;
   missions: Mission[];
 
   private timeAccumulator = 0;
-  private readonly TICK_RATE = 1;
+  private readonly TICK_RATE = 1.5; // Slowed 50% from 1s to 1.5s
   private saveTimer = 0;
   private readonly SAVE_INTERVAL = 5;
 
@@ -46,6 +48,8 @@ export class GameState {
     this.researchTree = createResearchTree();
     this.eras = new EraRegistry();
     this.stockMarket = new StockMarket();
+    this.newsFeed = new NewsFeed(this.stockMarket.stocks.map(s => s.symbol));
+    this.stockMarket.setNewsFeed(this.newsFeed);
     this.shop = new Shop();
     this.missions = createMissions();
     this.load();
@@ -66,6 +70,7 @@ export class GameState {
   }
 
   private tick(): void {
+    this.newsFeed.tick();
     this.stockMarket.tick();
   }
 

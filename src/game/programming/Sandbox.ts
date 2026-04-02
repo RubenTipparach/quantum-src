@@ -211,6 +211,7 @@ export class Sandbox {
       state.money -= cost;
       const current = state.portfolio.get(stock.symbol) ?? 0;
       state.portfolio.set(stock.symbol, current + qty);
+      state.newsFeed.onLargeTrade(stock.symbol, true, qty, stock.price);
       const entry: ConsoleEntry = { type: 'log', text: `Bought ${qty} ${stock.symbol} @ $${stock.price.toFixed(2)}` };
       this.consoleBuffer.push(entry);
       this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
@@ -232,6 +233,7 @@ export class Sandbox {
       if (!stock) return ctx.newString(`Unknown stock: ${sym}`);
       state.money += stock.price * qty;
       state.portfolio.set(sym, owned - qty);
+      state.newsFeed.onLargeTrade(sym, false, qty, stock.price);
       const entry: ConsoleEntry = { type: 'log', text: `Sold ${qty} ${sym} @ $${stock.price.toFixed(2)}` };
       this.consoleBuffer.push(entry);
       this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
@@ -239,6 +241,19 @@ export class Sandbox {
     });
     ctx.setProp(gameObj, 'sell', sellFn);
     sellFn.dispose();
+
+    const getNews = ctx.newFunction('getNews', () => {
+      const events = state.newsFeed.getRecentEvents().map(ev => ({
+        headline: ev.headline,
+        category: ev.category,
+        impact: Math.round(ev.impact * 1000) / 1000,
+        active: ev.remaining > 0,
+        targets: ev.targets,
+      }));
+      return ctx.newString(JSON.stringify(events));
+    });
+    ctx.setProp(gameObj, 'getNews', getNews);
+    getNews.dispose();
 
     const getPortfolio = ctx.newFunction('getPortfolio', () => {
       const data: Record<string, number> = {};

@@ -49,6 +49,11 @@ export class Sidebar {
       </div>
 
       <div class="sb-section">
+        <h3>News Feed</h3>
+        <div id="sb-news"><div class="stat-row" style="color:#334455;">No news yet...</div></div>
+      </div>
+
+      <div class="sb-section">
         <h3>Portfolio</h3>
         <div id="sb-portfolio"><div class="stat-row" style="color:#334455;">No holdings</div></div>
       </div>
@@ -202,6 +207,7 @@ export class Sidebar {
     setText('sb-ram', ramStr);
 
     this.updateStocks();
+    this.updateNews();
     this.updatePortfolio();
     this.updateMissions();
     this.updateShop();
@@ -224,6 +230,33 @@ export class Sidebar {
       </div>`;
     }).join('');
     for (const st of this.state.stockMarket.stocks) this.prevPrices.set(st.symbol, st.price);
+  }
+
+  private updateNews(): void {
+    const el = this.el.querySelector('#sb-news');
+    if (!el) return;
+    const events = this.state.newsFeed.getRecentEvents();
+    if (events.length === 0) {
+      el.innerHTML = '<div class="stat-row" style="color:#334455;">No news yet...</div>';
+      return;
+    }
+    el.innerHTML = events.slice(0, 8).map(ev => {
+      const isActive = ev.remaining > 0;
+      const isBullish = ev.impact > 0;
+      const icon = ev.category === 'world' ? '&#127758;'
+        : ev.category === 'ceo' ? '&#128100;'
+        : ev.category === 'research' ? '&#128300;'
+        : ev.category === 'market' ? '&#128200;'
+        : '&#127970;';
+      const impactColor = isBullish ? '#00cc66' : '#dd3333';
+      const opacity = isActive ? '1' : '0.4';
+      const activeIndicator = isActive ? `<span class="news-active" style="color:${impactColor};">&#9679;</span>` : '';
+      return `<div class="news-item" style="opacity:${opacity};">
+        <span class="news-icon">${icon}</span>
+        <span class="news-text">${ev.headline}</span>
+        ${activeIndicator}
+      </div>`;
+    }).join('');
   }
 
   private updatePortfolio(): void {
@@ -361,6 +394,7 @@ export class Sidebar {
         }
         s.researchCredits -= node.creditsCost;
         node.researched = true;
+        s.newsFeed.onResearchCompleted(node);
         s.advanceYear(node.yearAdvance);
         for (const other of s.researchTree) {
           if (!other.unlocked && other.prerequisites.every(p => s.researchTree.find(n2 => n2.id === p)?.researched)) {

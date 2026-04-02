@@ -1,3 +1,5 @@
+import type { NewsFeed } from './NewsFeed';
+
 export interface Candle {
   open: number;
   high: number;
@@ -11,49 +13,83 @@ export interface Stock {
   name: string;
   price: number;
   volatility: number;
-  trend: number;
-  /** Every tick (1 second) produces one candle */
+  /** Base drift removed — price is now pure random walk + news. */
+  momentum: number;
+  /** Every tick produces one candle */
   candles: Candle[];
 }
 
-/** Max candles to retain per stock (10 minutes worth) */
+/** Max candles to retain per stock (10 minutes worth at 1.5s ticks = 400) */
 const MAX_CANDLES = 600;
+
+/** Mean-reversion strength — pulls momentum back toward 0 */
+const MOMENTUM_DECAY = 0.92;
+/** How much random shock feeds into momentum */
+const MOMENTUM_SENSITIVITY = 0.3;
 
 export class StockMarket {
   stocks: Stock[] = [];
   private tickCount = 0;
   selectedSymbol = 'CPUX';
+  newsFeed: NewsFeed | null = null;
 
   constructor() {
-    const init = (symbol: string, name: string, price: number, volatility: number, trend: number): Stock => ({
-      symbol, name, price, volatility, trend,
+    const init = (symbol: string, name: string, price: number, volatility: number): Stock => ({
+      symbol, name, price, volatility,
+      momentum: 0,
       candles: [{ open: price, high: price, low: price, close: price, volume: 100 }],
     });
 
     this.stocks = [
-      init('CPUX', 'CompuTech Corp', 12.50, 0.05, 0.02),
-      init('NTWK', 'NetLink Systems', 8.00, 0.08, 0.01),
-      init('ENRG', 'PowerGrid Inc', 25.00, 0.03, 0.005),
-      init('DATA', 'DataVault Ltd', 5.00, 0.12, -0.01),
-      init('ROBO', 'AutoMind AI', 3.00, 0.15, 0.03),
+      init('CPUX', 'CompuTech Corp', 12.50, 0.04),
+      init('NTWK', 'NetLink Systems', 8.00, 0.06),
+      init('ENRG', 'PowerGrid Inc', 25.00, 0.03),
+      init('DATA', 'DataVault Ltd', 5.00, 0.08),
+      init('ROBO', 'AutoMind AI', 3.00, 0.10),
     ];
+  }
+
+  setNewsFeed(feed: NewsFeed): void {
+    this.newsFeed = feed;
   }
 
   tick(): void {
     this.tickCount++;
     for (const stock of this.stocks) {
-      const random = (Math.random() - 0.5) * 2 * stock.volatility;
-      const trendEffect = stock.trend;
-      const change = stock.price * (random + trendEffect);
+      // Pure random walk component — symmetric, zero-mean
+      const shock = (Math.random() - 0.5) * 2 * stock.volatility;
+
+      // Momentum: accumulates shocks so stocks can trend for short bursts,
+      // but decays back toward zero (mean-reverting)
+      stock.momentum = stock.momentum * MOMENTUM_DECAY + shock * MOMENTUM_SENSITIVITY;
+
+      // News-driven component
+      let newsEffect = 0;
+      if (this.newsFeed) {
+        newsEffect = this.newsFeed.getImpact(stock.symbol);
+      }
+
+      // Occasional large random jumps (fat tails) — ~5% chance per tick
+      let fatTail = 0;
+      if (Math.random() < 0.05) {
+        fatTail = (Math.random() - 0.5) * stock.volatility * 4;
+      }
+
+      // Combine: random walk + momentum + news + fat tail
+      const change = stock.price * (shock + stock.momentum + newsEffect + fatTail);
       const newPrice = Math.max(0.01, stock.price + change);
 
-      // Each tick = 1 candle (1 second)
+      // Volume correlates with volatility and news activity
+      const baseVolume = 50 + Math.random() * 150;
+      const newsVolumeMult = 1 + Math.abs(newsEffect) * 20;
+      const volume = Math.round(baseVolume * newsVolumeMult);
+
       const candle: Candle = {
         open: stock.price,
         high: Math.max(stock.price, newPrice),
         low: Math.min(stock.price, newPrice),
         close: newPrice,
-        volume: Math.round(50 + Math.random() * 200),
+        volume,
       };
 
       stock.price = newPrice;
@@ -84,7 +120,6 @@ export class StockMarket {
       count++;
     }
     if (count === 0) return 0;
-    // Map average % change to -1..1, clamped
     const avg = totalChange / count;
     return Math.max(-1, Math.min(1, avg * 20));
   }
