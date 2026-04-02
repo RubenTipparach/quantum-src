@@ -65,7 +65,7 @@ export class StockChart {
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
-    const padding = { top: 28, right: 60, bottom: 36, left: 6 };
+    const padding = { top: 38, right: 60, bottom: 36, left: 6 };
     const chartW = w - padding.left - padding.right;
     const volumeH = 20;
     const chartH = h - padding.top - padding.bottom - volumeH;
@@ -129,25 +129,20 @@ export class StockChart {
     const changeColor = priceChange >= 0 ? GREEN : RED;
     const changeSign = priceChange >= 0 ? '+' : '';
 
-    ctx.font = 'bold 14px Courier New';
+    ctx.font = 'bold 13px Courier New';
     ctx.fillStyle = COLORS.priceLabel;
     ctx.textAlign = 'left';
-    ctx.fillText(stock.symbol, padding.left + 4, padding.top - 10);
-
-    ctx.font = '11px Courier New';
-    ctx.fillStyle = COLORS.symbolLabel;
-    const nameX = padding.left + 4 + ctx.measureText(stock.symbol).width + 8;
-    ctx.fillText(stock.name, nameX, padding.top - 10);
+    ctx.fillText(stock.symbol, padding.left + 4, padding.top - 12);
 
     ctx.font = 'bold 12px Courier New';
     ctx.fillStyle = COLORS.priceLabel;
-    const priceX = nameX + ctx.measureText(stock.name).width + 12;
-    ctx.fillText(`$${stock.price.toFixed(2)}`, priceX, padding.top - 10);
+    const priceX = padding.left + 4 + ctx.measureText(stock.symbol).width + 10;
+    ctx.fillText(`$${stock.price.toFixed(2)}`, priceX, padding.top - 12);
 
     ctx.font = 'bold 12px Courier New';
     ctx.fillStyle = changeColor;
     const changeX = priceX + ctx.measureText(`$${stock.price.toFixed(2)}`).width + 8;
-    ctx.fillText(`${changeSign}${pctChange.toFixed(1)}%`, changeX, padding.top - 10);
+    ctx.fillText(`${changeSign}${pctChange.toFixed(1)}%`, changeX, padding.top - 12);
 
     // Bottom: timeframe label + bar count
     const tfLabel = this.timeframe === 60 ? '1m' : this.timeframe === 300 ? '5m' : '10m';
@@ -285,7 +280,7 @@ export class StockChart {
     ctx.fillRect(x + pos - 1, y - 1, 3, h + 2);
 
     // Labels
-    ctx.font = '9px Courier New';
+    ctx.font = '10px Courier New';
     ctx.fillStyle = '#ff4444';
     ctx.textAlign = 'left';
     ctx.fillText('FEAR', x, y + h + 10);
