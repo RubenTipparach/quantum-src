@@ -99,6 +99,8 @@ export class GameEngine {
       const btn = document.createElement('button');
       btn.textContent = s.symbol;
       btn.dataset['sym'] = s.symbol;
+      const sectorLabel = s.sector.charAt(0).toUpperCase() + s.sector.slice(1);
+      btn.title = `${s.name} — ${sectorLabel}\n${s.description}`;
       if (s.symbol === this.gameState.stockMarket.selectedSymbol) btn.classList.add('active');
       btn.addEventListener('click', () => {
         this.gameState.stockMarket.selectedSymbol = s.symbol;

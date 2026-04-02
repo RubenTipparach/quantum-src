@@ -223,8 +223,10 @@ export class Sidebar {
       const pct = prev > 0 ? (diff / prev) * 100 : 0;
       const cls = diff >= 0 ? 'up' : 'down';
       const sign = diff >= 0 ? '+' : '';
+      const escaped = st.description.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+      const sectorLabel = st.sector.charAt(0).toUpperCase() + st.sector.slice(1);
       return `<div class="stock-row">
-        <span class="sym">${st.symbol}</span>
+        <span class="sym stock-tag" data-tooltip="${st.name}\n${sectorLabel} sector\n\n${escaped}">${st.symbol}</span>
         <span class="price">$${st.price.toFixed(2)}</span>
         <span class="change ${cls}">${sign}${pct.toFixed(1)}%</span>
       </div>`;
@@ -270,7 +272,10 @@ export class Sidebar {
       const stock = this.state.stockMarket.getStock(sym);
       const val = stock ? stock.price * qty : 0;
       totalValue += val;
-      entries.push(`<div class="portfolio-row"><span>${sym} <span class="shares">x${qty}</span></span><span class="value">$${val.toFixed(2)}</span></div>`);
+      const desc = stock ? stock.description.replace(/'/g, '&#39;').replace(/"/g, '&quot;') : '';
+      const sectorLabel = stock ? stock.sector.charAt(0).toUpperCase() + stock.sector.slice(1) : '';
+      const tooltip = stock ? `${stock.name}\n${sectorLabel} sector\n\n${desc}` : sym;
+      entries.push(`<div class="portfolio-row"><span><span class="stock-tag" data-tooltip="${tooltip}">${sym}</span> <span class="shares">x${qty}</span></span><span class="value">$${val.toFixed(2)}</span></div>`);
     }
     if (entries.length === 0) {
       el.innerHTML = '<div class="stat-row" style="color:#334455;">No holdings</div>';

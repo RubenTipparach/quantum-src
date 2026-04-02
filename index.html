@@ -91,7 +91,43 @@
       font-size: 11px;
       color: #668877;
     }
-    .stock-row .sym { color: #88bbaa; font-weight: bold; width: 50px; }
+    .stock-row .sym { color: #88bbaa; font-weight: bold; width: 50px; flex-shrink: 0; }
+
+    /* Hoverable stock tag with tooltip */
+    .stock-tag {
+      position: relative;
+      cursor: help;
+      background: #0a1a15;
+      border: 1px solid #1a3a2a;
+      border-radius: 3px;
+      padding: 0 4px;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .stock-tag:hover {
+      border-color: #00ff88;
+      background: #0f2a1a;
+    }
+    .stock-tag:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 6px);
+      background: #0a0a18;
+      border: 1px solid #00ff88;
+      border-radius: 4px;
+      padding: 8px 10px;
+      color: #aaccbb;
+      font-size: 10px;
+      font-weight: normal;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      width: 200px;
+      z-index: 100;
+      pointer-events: none;
+      box-shadow: 0 2px 12px rgba(0, 255, 136, 0.15);
+    }
     .stock-row .price { color: #44dd88; text-align: right; flex: 1; }
     .stock-row .change { text-align: right; width: 55px; font-size: 10px; }
     .stock-row .change.up { color: #00ff88; }
