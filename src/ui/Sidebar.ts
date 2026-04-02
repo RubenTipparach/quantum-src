@@ -1,6 +1,7 @@
 import type { GameState } from '../game/GameState';
 import type { ConsoleOutput } from './ConsoleOutput';
 import type { Mission } from '../game/missions/Missions';
+import { BracketView } from './BracketView';
 
 export class Sidebar {
   private el: HTMLDivElement;
@@ -8,6 +9,7 @@ export class Sidebar {
   private console: ConsoleOutput;
   private prevPrices: Map<string, number> = new Map();
   private onLoadMission: ((mission: Mission) => void) | null = null;
+  private tooltipEl: HTMLDivElement;
 
   constructor(el: HTMLDivElement, state: GameState, console: ConsoleOutput) {
     this.el = el;
@@ -16,7 +18,57 @@ export class Sidebar {
     for (const s of state.stockMarket.stocks) {
       this.prevPrices.set(s.symbol, s.price);
     }
+
+    // Create shared tooltip element
+    this.tooltipEl = document.createElement('div');
+    this.tooltipEl.className = 'stock-tooltip';
+    this.tooltipEl.style.display = 'none';
+    document.body.appendChild(this.tooltipEl);
+
+    // Global listener to dismiss tooltip on outside tap
+    document.addEventListener('click', (e) => {
+      if (!(e.target as HTMLElement)?.classList?.contains('stock-tag')) {
+        this.tooltipEl.style.display = 'none';
+      }
+    });
+
+    // Delegate hover/click on stock tags
+    this.el.addEventListener('mouseover', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) this.showTooltip(tag);
+    });
+    this.el.addEventListener('mouseout', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) this.tooltipEl.style.display = 'none';
+    });
+    this.el.addEventListener('click', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) {
+        e.stopPropagation();
+        if (this.tooltipEl.style.display === 'block' && this.tooltipEl.dataset['sym'] === tag.textContent) {
+          this.tooltipEl.style.display = 'none';
+        } else {
+          this.showTooltip(tag);
+        }
+      }
+    });
+
     this.render();
+  }
+
+  private showTooltip(tag: HTMLElement): void {
+    const text = tag.dataset['tooltip'] ?? '';
+    if (!text) return;
+    this.tooltipEl.textContent = text;
+    this.tooltipEl.dataset['sym'] = tag.textContent ?? '';
+    this.tooltipEl.style.display = 'block';
+    const rect = tag.getBoundingClientRect();
+    let top = rect.top - this.tooltipEl.offsetHeight - 6;
+    if (top < 4) top = rect.bottom + 6; // flip below if no room above
+    let left = rect.left;
+    if (left + 210 > window.innerWidth) left = window.innerWidth - 214;
+    this.tooltipEl.style.top = top + 'px';
+    this.tooltipEl.style.left = Math.max(4, left) + 'px';
   }
 
   setOnLoadMission(fn: (mission: Mission) => void): void {
@@ -49,8 +101,18 @@ export class Sidebar {
       </div>
 
       <div class="sb-section">
+        <h3>News Feed</h3>
+        <div id="sb-news"><div class="stat-row" style="color:#334455;">No news yet...</div></div>
+      </div>
+
+      <div class="sb-section">
         <h3>Portfolio</h3>
         <div id="sb-portfolio"><div class="stat-row" style="color:#334455;">No holdings</div></div>
+      </div>
+
+      <div class="sb-section">
+        <h3>Sports & Betting</h3>
+        <div id="sb-sports"></div>
       </div>
 
       <div class="sb-section">
@@ -202,7 +264,9 @@ export class Sidebar {
     setText('sb-ram', ramStr);
 
     this.updateStocks();
+    this.updateNews();
     this.updatePortfolio();
+    this.updateSports();
     this.updateMissions();
     this.updateShop();
     this.updateResearch();
@@ -217,13 +281,43 @@ export class Sidebar {
       const pct = prev > 0 ? (diff / prev) * 100 : 0;
       const cls = diff >= 0 ? 'up' : 'down';
       const sign = diff >= 0 ? '+' : '';
+      const escaped = st.description.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+      const sectorLabel = st.sector.charAt(0).toUpperCase() + st.sector.slice(1);
       return `<div class="stock-row">
-        <span class="sym">${st.symbol}</span>
+        <span class="sym stock-tag" data-tooltip="${st.name}\n${sectorLabel} sector\n\n${escaped}">${st.symbol}</span>
         <span class="price">$${st.price.toFixed(2)}</span>
         <span class="change ${cls}">${sign}${pct.toFixed(1)}%</span>
       </div>`;
     }).join('');
     for (const st of this.state.stockMarket.stocks) this.prevPrices.set(st.symbol, st.price);
+  }
+
+  private updateNews(): void {
+    const el = this.el.querySelector('#sb-news');
+    if (!el) return;
+    const events = this.state.newsFeed.getRecentEvents();
+    if (events.length === 0) {
+      el.innerHTML = '<div class="stat-row" style="color:#334455;">No news yet...</div>';
+      return;
+    }
+    el.innerHTML = events.slice(0, 8).map(ev => {
+      const isActive = ev.remaining > 0;
+      const isBullish = ev.impact > 0;
+      const icon = ev.category === 'world' ? '&#127758;'
+        : ev.category === 'ceo' ? '&#128100;'
+        : ev.category === 'research' ? '&#128300;'
+        : ev.category === 'market' ? '&#128200;'
+        : ev.category === 'sector' ? '&#128202;'
+        : '&#127970;';
+      const impactColor = isBullish ? '#00cc66' : '#dd3333';
+      const opacity = isActive ? '1' : '0.4';
+      const activeIndicator = isActive ? `<span class="news-active" style="color:${impactColor};">&#9679;</span>` : '';
+      return `<div class="news-item" style="opacity:${opacity};">
+        <span class="news-icon">${icon}</span>
+        <span class="news-text">${ev.headline}</span>
+        ${activeIndicator}
+      </div>`;
+    }).join('');
   }
 
   private updatePortfolio(): void {
@@ -236,7 +330,10 @@ export class Sidebar {
       const stock = this.state.stockMarket.getStock(sym);
       const val = stock ? stock.price * qty : 0;
       totalValue += val;
-      entries.push(`<div class="portfolio-row"><span>${sym} <span class="shares">x${qty}</span></span><span class="value">$${val.toFixed(2)}</span></div>`);
+      const desc = stock ? stock.description.replace(/'/g, '&#39;').replace(/"/g, '&quot;') : '';
+      const sectorLabel = stock ? stock.sector.charAt(0).toUpperCase() + stock.sector.slice(1) : '';
+      const tooltip = stock ? `${stock.name}\n${sectorLabel} sector\n\n${desc}` : sym;
+      entries.push(`<div class="portfolio-row"><span><span class="stock-tag" data-tooltip="${tooltip}">${sym}</span> <span class="shares">x${qty}</span></span><span class="value">$${val.toFixed(2)}</span></div>`);
     }
     if (entries.length === 0) {
       el.innerHTML = '<div class="stat-row" style="color:#334455;">No holdings</div>';
@@ -244,6 +341,55 @@ export class Sidebar {
       entries.push(`<div class="portfolio-row" style="border-top:1px solid #1a3a2a;margin-top:4px;padding-top:4px;"><span style="color:#668877;">Total</span><span class="value">$${totalValue.toFixed(2)}</span></div>`);
       el.innerHTML = entries.join('');
     }
+  }
+
+  private updateSports(): void {
+    const el = this.el.querySelector('#sb-sports');
+    if (!el) return;
+    const sports = this.state.sportsLeague.sports;
+
+    el.innerHTML = sports.map(sport => {
+      let phaseText: string;
+      let phaseColor: string;
+      if (sport.phase === 'betting') {
+        const secs = Math.ceil(sport.phaseTicksLeft * 1.5);
+        phaseText = `BETTING ${secs}s`;
+        phaseColor = '#ffaa22';
+      } else if (sport.phase === 'playing') {
+        phaseText = sport.bracket[sport.currentRound]?.name ?? 'Playing';
+        phaseColor = '#00ff88';
+      } else {
+        phaseText = 'COMPLETE';
+        phaseColor = '#6688ff';
+      }
+
+      const betStatus = sport.playerBets
+        ? (sport.playerBets.payout > 0
+          ? `<span style="color:#00ff88;">+$${sport.playerBets.payout.toLocaleString()}</span>`
+          : '<span style="color:#668877;">Bet placed</span>')
+        : (sport.phase === 'betting'
+          ? '<span style="color:#ffaa22;">No bet</span>'
+          : '<span style="color:#334455;">—</span>');
+
+      return `<button class="sidebar-btn sport-btn" data-sport="${sport.id}" style="border-color:#2a3a4a55;">
+        <span style="display:flex;justify-content:space-between;align-items:center;">
+          <span>${sport.icon} ${sport.name} S${sport.seasonNumber}</span>
+          <span style="font-size:9px;color:${phaseColor};">${phaseText}</span>
+        </span>
+        <span style="display:flex;justify-content:space-between;font-size:9px;margin-top:2px;">
+          ${betStatus}
+          <span style="color:#446666;">View Bracket</span>
+        </span>
+      </button>`;
+    }).join('');
+
+    el.querySelectorAll('.sport-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sportId = (btn as HTMLElement).dataset['sport']!;
+        const sport = this.state.sportsLeague.getSport(sportId);
+        if (sport) BracketView.show(sport);
+      });
+    });
   }
 
   private updateMissions(): void {
@@ -361,6 +507,7 @@ export class Sidebar {
         }
         s.researchCredits -= node.creditsCost;
         node.researched = true;
+        s.newsFeed.onResearchCompleted(node);
         s.advanceYear(node.yearAdvance);
         for (const other of s.researchTree) {
           if (!other.unlocked && other.prerequisites.every(p => s.researchTree.find(n2 => n2.id === p)?.researched)) {

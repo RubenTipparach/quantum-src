@@ -3,7 +3,9 @@ import type { ResearchNode } from './research/ResearchTree';
 import { createResearchTree } from './research/ResearchTree';
 import type { ComputeHardware } from './Types';
 import { StockMarket } from './economy/StockMarket';
+import { NewsFeed } from './economy/NewsFeed';
 import { Shop } from './shop/Shop';
+import { SportsLeague } from './sports/SportsLeague';
 import type { Mission } from './missions/Missions';
 import { createMissions } from './missions/Missions';
 
@@ -20,6 +22,8 @@ interface SaveData {
   portfolio: Record<string, number>;
   completedMissions: string[];
   purchasedShopItems: string[];
+  stockMarket?: object;
+  sportsLeague?: object;
 }
 
 export class GameState {
@@ -33,12 +37,14 @@ export class GameState {
   researchTree: ResearchNode[];
   eras: EraRegistry;
   stockMarket: StockMarket;
+  newsFeed: NewsFeed;
   portfolio: Map<string, number> = new Map();
   shop: Shop;
+  sportsLeague: SportsLeague;
   missions: Mission[];
 
   private timeAccumulator = 0;
-  private readonly TICK_RATE = 1;
+  private readonly TICK_RATE = 1.5; // Slowed 50% from 1s to 1.5s
   private saveTimer = 0;
   private readonly SAVE_INTERVAL = 5;
 
@@ -46,7 +52,10 @@ export class GameState {
     this.researchTree = createResearchTree();
     this.eras = new EraRegistry();
     this.stockMarket = new StockMarket();
+    this.newsFeed = new NewsFeed(this.stockMarket.stocks.map(s => s.symbol));
+    this.stockMarket.setNewsFeed(this.newsFeed);
     this.shop = new Shop();
+    this.sportsLeague = new SportsLeague();
     this.missions = createMissions();
     this.load();
   }
@@ -66,7 +75,15 @@ export class GameState {
   }
 
   private tick(): void {
+    this.newsFeed.tick();
     this.stockMarket.tick();
+    this.sportsLeague.tick();
+
+    // Auto-collect sports payouts
+    const payouts = this.sportsLeague.collectPayouts();
+    if (payouts > 0) {
+      this.money += payouts;
+    }
   }
 
   getComputeLabel(): string {
@@ -139,6 +156,8 @@ export class GameState {
       portfolio: {},
       completedMissions: this.missions.filter(m => m.completed).map(m => m.id),
       purchasedShopItems: this.shop.items.filter(i => i.purchased).map(i => i.id),
+      stockMarket: this.stockMarket.serialize(),
+      sportsLeague: this.sportsLeague.serialize(),
     };
 
     for (const node of this.researchTree) {
@@ -199,6 +218,16 @@ export class GameState {
           if (item) item.purchased = true;
           // Don't re-apply — hardware state already loaded
         }
+      }
+
+      // Restore stock market state
+      if (data.stockMarket) {
+        this.stockMarket.deserialize(data.stockMarket as Parameters<typeof this.stockMarket.deserialize>[0]);
+      }
+
+      // Restore sports league state
+      if (data.sportsLeague) {
+        this.sportsLeague.deserialize(data.sportsLeague);
       }
     } catch { /* corrupted save — start fresh */ }
   }

@@ -1,11 +1,11 @@
-import type { Stock } from '../game/economy/StockMarket';
+import type { Stock, Candle } from '../game/economy/StockMarket';
 
 export type Timeframe = 60 | 300 | 600;
 export type ChartMode = 'candle' | 'line';
 
-const BAR_WIDTH = 6;
+/** Minimum bar width */
+const MIN_BAR_WIDTH = 2;
 const BAR_GAP = 1;
-const BAR_STEP = BAR_WIDTH + BAR_GAP;
 
 const GREEN = '#00cc66';
 const RED = '#dd3333';
@@ -65,7 +65,7 @@ export class StockChart {
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
-    const padding = { top: 22, right: 55, bottom: 32, left: 6 };
+    const padding = { top: 28, right: 60, bottom: 36, left: 6 };
     const chartW = w - padding.left - padding.right;
     const volumeH = 20;
     const chartH = h - padding.top - padding.bottom - volumeH;
@@ -113,61 +113,72 @@ export class StockChart {
 
     // Current price badge on right axis
     ctx.fillStyle = '#0a2a18';
-    ctx.fillRect(padding.left + chartW + 2, curY - 7, 50, 14);
+    ctx.fillRect(padding.left + chartW + 2, curY - 8, 55, 16);
     ctx.strokeStyle = COLORS.priceLabel;
     ctx.lineWidth = 0.5;
-    ctx.strokeRect(padding.left + chartW + 2, curY - 7, 50, 14);
+    ctx.strokeRect(padding.left + chartW + 2, curY - 8, 55, 16);
     ctx.fillStyle = COLORS.priceLabel;
-    ctx.font = 'bold 9px Courier New';
+    ctx.font = 'bold 11px Courier New';
     ctx.textAlign = 'left';
-    ctx.fillText(`$${stock.price.toFixed(2)}`, padding.left + chartW + 5, curY + 3);
+    ctx.fillText(`$${stock.price.toFixed(2)}`, padding.left + chartW + 5, curY + 4);
 
-    // Header: symbol + price + change %
+    // Header: symbol + name + price + change %
     const firstCandle = tfCandles[0]!;
     const priceChange = stock.price - firstCandle.open;
     const pctChange = (priceChange / firstCandle.open) * 100;
     const changeColor = priceChange >= 0 ? GREEN : RED;
     const changeSign = priceChange >= 0 ? '+' : '';
 
-    ctx.font = 'bold 11px Courier New';
-    ctx.fillStyle = COLORS.symbolLabel;
-    ctx.textAlign = 'left';
-    ctx.fillText(`${stock.symbol}`, padding.left + 4, padding.top - 8);
-
-    ctx.font = '10px Courier New';
+    ctx.font = 'bold 14px Courier New';
     ctx.fillStyle = COLORS.priceLabel;
-    const priceX = padding.left + 4 + ctx.measureText(stock.symbol).width + 8;
-    ctx.fillText(`$${stock.price.toFixed(2)}`, priceX, padding.top - 8);
+    ctx.textAlign = 'left';
+    ctx.fillText(stock.symbol, padding.left + 4, padding.top - 10);
 
+    ctx.font = '11px Courier New';
+    ctx.fillStyle = COLORS.symbolLabel;
+    const nameX = padding.left + 4 + ctx.measureText(stock.symbol).width + 8;
+    ctx.fillText(stock.name, nameX, padding.top - 10);
+
+    ctx.font = 'bold 12px Courier New';
+    ctx.fillStyle = COLORS.priceLabel;
+    const priceX = nameX + ctx.measureText(stock.name).width + 12;
+    ctx.fillText(`$${stock.price.toFixed(2)}`, priceX, padding.top - 10);
+
+    ctx.font = 'bold 12px Courier New';
     ctx.fillStyle = changeColor;
     const changeX = priceX + ctx.measureText(`$${stock.price.toFixed(2)}`).width + 8;
-    ctx.fillText(`${changeSign}${pctChange.toFixed(1)}%`, changeX, padding.top - 8);
+    ctx.fillText(`${changeSign}${pctChange.toFixed(1)}%`, changeX, padding.top - 10);
 
     // Bottom: timeframe label + bar count
     const tfLabel = this.timeframe === 60 ? '1m' : this.timeframe === 300 ? '5m' : '10m';
-    ctx.font = '9px Courier New';
+    ctx.font = '10px Courier New';
     ctx.fillStyle = COLORS.timeframeLabel;
     ctx.textAlign = 'left';
-    ctx.fillText(`${tfLabel} · ${tfCandles.length} bars`, padding.left + 4, h - padding.bottom + 14);
+    ctx.fillText(`${tfLabel} · ${tfCandles.length} bars`, padding.left + 4, h - padding.bottom + 16);
 
     // Market emotion gauge at bottom
     this.drawEmotionGauge(ctx, padding.left + chartW / 2 - 60, h - padding.bottom + 8, 120, 10, marketEmotion);
   }
 
   private drawCandles(
-    ctx: CanvasRenderingContext2D, stock: Stock,
-    candles: typeof stock.candles, priceToY: (p: number) => number,
+    ctx: CanvasRenderingContext2D, _stock: Stock,
+    candles: Candle[], priceToY: (p: number) => number,
     maxVol: number, volumeH: number,
     padding: { top: number; right: number; bottom: number; left: number },
     chartW: number, totalH: number,
   ): void {
-    const maxBars = Math.floor(chartW / BAR_STEP);
-    const visible = candles.slice(-maxBars);
-    const startX = padding.left + chartW - visible.length * BAR_STEP;
+    const numCandles = candles.length;
+    if (numCandles === 0) return;
 
-    for (let i = 0; i < visible.length; i++) {
-      const c = visible[i]!;
-      const cx = startX + i * BAR_STEP + BAR_WIDTH / 2;
+    // Dynamic bar width: stretch to fill chart
+    const barStep = Math.max(MIN_BAR_WIDTH + BAR_GAP, chartW / numCandles);
+    const barW = Math.max(MIN_BAR_WIDTH, barStep - BAR_GAP);
+    const startX = padding.left;
+
+    for (let i = 0; i < numCandles; i++) {
+      const c = candles[i]!;
+      const cx = startX + i * barStep + barW / 2;
+      if (cx > padding.left + chartW + barW) break;
       const isBull = c.close >= c.open;
 
       // Wick
@@ -183,35 +194,35 @@ export class StockChart {
       const bodyBot = priceToY(Math.min(c.open, c.close));
       const bodyH = Math.max(1, bodyBot - bodyTop);
       ctx.fillStyle = isBull ? COLORS.bullBody : COLORS.bearBody;
-      ctx.fillRect(cx - BAR_WIDTH / 2, bodyTop, BAR_WIDTH, bodyH);
+      ctx.fillRect(cx - barW / 2, bodyTop, barW, bodyH);
 
       // Volume
       const volH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
       const volY = totalH - padding.bottom - volH;
       ctx.fillStyle = isBull ? COLORS.volumeHigh : COLORS.volume;
-      ctx.fillRect(cx - BAR_WIDTH / 2, volY, BAR_WIDTH, volH);
+      ctx.fillRect(cx - barW / 2, volY, barW, volH);
     }
   }
 
   private drawLine(
-    ctx: CanvasRenderingContext2D, stock: Stock,
-    candles: typeof stock.candles, priceToY: (p: number) => number,
+    ctx: CanvasRenderingContext2D, _stock: Stock,
+    candles: Candle[], priceToY: (p: number) => number,
     maxVol: number, volumeH: number,
     padding: { top: number; right: number; bottom: number; left: number },
     chartW: number, totalH: number,
   ): void {
     if (candles.length < 2) return;
 
-    const prices = candles.map(c => c.close);
-    const gap = chartW / Math.max(1, prices.length - 1);
+    const numCandles = candles.length;
+    const gap = chartW / Math.max(1, numCandles - 1);
 
     // Area fill
     ctx.beginPath();
-    ctx.moveTo(padding.left, priceToY(prices[0]!));
-    for (let i = 0; i < prices.length; i++) {
-      ctx.lineTo(padding.left + i * gap, priceToY(prices[i]!));
+    ctx.moveTo(padding.left, priceToY(candles[0]!.close));
+    for (let i = 0; i < numCandles; i++) {
+      ctx.lineTo(padding.left + i * gap, priceToY(candles[i]!.close));
     }
-    ctx.lineTo(padding.left + (prices.length - 1) * gap, padding.top + (totalH - padding.top - padding.bottom - volumeH));
+    ctx.lineTo(padding.left + (numCandles - 1) * gap, padding.top + (totalH - padding.top - padding.bottom - volumeH));
     ctx.lineTo(padding.left, padding.top + (totalH - padding.top - padding.bottom - volumeH));
     ctx.closePath();
     ctx.fillStyle = COLORS.lineFill;
@@ -219,9 +230,9 @@ export class StockChart {
 
     // Line
     ctx.beginPath();
-    for (let i = 0; i < prices.length; i++) {
+    for (let i = 0; i < numCandles; i++) {
       const px = padding.left + i * gap;
-      const py = priceToY(prices[i]!);
+      const py = priceToY(candles[i]!.close);
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.strokeStyle = COLORS.line;
@@ -229,8 +240,8 @@ export class StockChart {
     ctx.stroke();
 
     // Pulsing dot at current price
-    const lastX = padding.left + (prices.length - 1) * gap;
-    const lastY = priceToY(prices[prices.length - 1]!);
+    const lastX = padding.left + (numCandles - 1) * gap;
+    const lastY = priceToY(candles[numCandles - 1]!.close);
     const pulse = 2 + Math.sin(this.time * 3) * 1;
     const pulseAlpha = 0.7 + Math.sin(this.time * 3) * 0.3;
     ctx.beginPath();
@@ -240,17 +251,17 @@ export class StockChart {
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Volume bars
-    const maxBars = Math.floor(chartW / BAR_STEP);
-    const visCandles = candles.slice(-maxBars);
-    const vStartX = padding.left + chartW - visCandles.length * BAR_STEP;
-    for (let i = 0; i < visCandles.length; i++) {
-      const c = visCandles[i]!;
-      const cx = vStartX + i * BAR_STEP + BAR_WIDTH / 2;
+    // Volume bars — stretch to fill
+    const barStep = Math.max(MIN_BAR_WIDTH + BAR_GAP, chartW / numCandles);
+    const barW = Math.max(MIN_BAR_WIDTH, barStep - BAR_GAP);
+    for (let i = 0; i < numCandles; i++) {
+      const c = candles[i]!;
+      const cx = padding.left + i * barStep + barW / 2;
+      if (cx > padding.left + chartW + barW) break;
       const volH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
       const volY = totalH - padding.bottom - volH;
       ctx.fillStyle = c.close >= c.open ? COLORS.volumeHigh : COLORS.volume;
-      ctx.fillRect(cx - BAR_WIDTH / 2, volY, BAR_WIDTH, volH);
+      ctx.fillRect(cx - barW / 2, volY, barW, volH);
     }
   }
 
@@ -274,13 +285,13 @@ export class StockChart {
     ctx.fillRect(x + pos - 1, y - 1, 3, h + 2);
 
     // Labels
-    ctx.font = '7px Courier New';
+    ctx.font = '9px Courier New';
     ctx.fillStyle = '#ff4444';
     ctx.textAlign = 'left';
-    ctx.fillText('FEAR', x, y + h + 8);
+    ctx.fillText('FEAR', x, y + h + 10);
     ctx.fillStyle = '#44ff44';
     ctx.textAlign = 'right';
-    ctx.fillText('GREED', x + w, y + h + 8);
+    ctx.fillText('GREED', x + w, y + h + 10);
     ctx.textAlign = 'left';
   }
 
@@ -291,7 +302,7 @@ export class StockChart {
   ): void {
     const gridLines = 3;
     const range = maxP - minP || 1;
-    ctx.font = '9px Courier New';
+    ctx.font = '10px Courier New';
     ctx.textAlign = 'left';
 
     for (let i = 0; i <= gridLines; i++) {
