@@ -289,7 +289,7 @@ export class Sidebar {
       <div class="sb-tab-content" id="stab-docs" style="display:none;">
         <div class="sb-section docs-section">
           <h3>API Documentation</h3>
-          <p class="docs-intro">Use these functions in your code editor. All data functions return JSON strings — use <code>JSON.parse()</code> to work with the data.</p>
+          <p class="docs-intro">Use these functions in your code editor. Data functions return objects/arrays directly — no JSON.parse needed.</p>
 
           <div class="docs-group">
             <h4>System</h4>
@@ -314,9 +314,9 @@ export class Sidebar {
             <h4>Stock Market</h4>
             <div class="docs-fn">
               <code>game.getStocks()</code>
-              <span class="docs-ret">Returns: JSON string</span>
+              <span class="docs-ret">Returns: object</span>
               <p>Array of all stocks with current prices.</p>
-              <pre class="docs-example">let stocks = JSON.parse(game.getStocks());
+              <pre class="docs-example">let stocks = game.getStocks();
 // [{symbol: "CPUX", price: 12.50}, ...]
 for (let s of stocks) {
   console.log(s.symbol + ": $" + s.price);
@@ -336,16 +336,16 @@ for (let s of stocks) {
             </div>
             <div class="docs-fn">
               <code>game.getPortfolio()</code>
-              <span class="docs-ret">Returns: JSON string</span>
+              <span class="docs-ret">Returns: object</span>
               <p>Your current stock holdings.</p>
-              <pre class="docs-example">let p = JSON.parse(game.getPortfolio());
+              <pre class="docs-example">let p = game.getPortfolio();
 // {CPUX: 10, ROBO: 5}</pre>
             </div>
             <div class="docs-fn">
               <code>game.getNews()</code>
-              <span class="docs-ret">Returns: JSON string</span>
+              <span class="docs-ret">Returns: object</span>
               <p>Recent news events with market impact data.</p>
-              <pre class="docs-example">let news = JSON.parse(game.getNews());
+              <pre class="docs-example">let news = game.getNews();
 // [{headline: "...",
 //   category: "world",
 //   impact: 0.05,
@@ -374,9 +374,9 @@ for (let n of news) {
             <h4>Sports Betting</h4>
             <div class="docs-fn">
               <code>game.getSports()</code>
-              <span class="docs-ret">Returns: JSON string</span>
+              <span class="docs-ret">Returns: object</span>
               <p>All sports with season status and betting info.</p>
-              <pre class="docs-example">let sports = JSON.parse(game.getSports());
+              <pre class="docs-example">let sports = game.getSports();
 // [{id: "football", name: "Football",
 //   phase: "betting", seasonNumber: 1,
 //   bettingTicksLeft: 180, hasBet: false},
@@ -384,7 +384,7 @@ for (let n of news) {
             </div>
             <div class="docs-fn">
               <code>game.getTeams(sportId)</code>
-              <span class="docs-ret">Returns: JSON string</span>
+              <span class="docs-ret">Returns: object</span>
               <p>All 16 teams in a sport with ratings and records.</p>
               <pre class="docs-example">let teams = JSON.parse(
   game.getTeams("football")
@@ -400,7 +400,7 @@ console.log("Best: " + teams[0].name);</pre>
             </div>
             <div class="docs-fn">
               <code>game.getBracket(sportId)</code>
-              <span class="docs-ret">Returns: JSON string</span>
+              <span class="docs-ret">Returns: object</span>
               <p>Current tournament bracket with match results.</p>
               <pre class="docs-example">let bracket = JSON.parse(
   game.getBracket("football")
@@ -504,6 +504,16 @@ game.placeBets("football", 100, {
     const handle = this.el.querySelector('#sb-resize-handle') as HTMLElement;
     if (!handle) return;
 
+    // Restore saved width
+    const savedW = localStorage.getItem('quantumsrc_sidebar_width');
+    if (savedW) {
+      const w = parseInt(savedW, 10);
+      if (w >= 240) {
+        this.el.style.width = w + 'px';
+        (this.el.parentElement as HTMLElement).style.gridTemplateColumns = w + 'px 1fr';
+      }
+    }
+
     let startX = 0;
     let startW = 0;
 
@@ -518,6 +528,7 @@ game.placeBets("football", 100, {
       document.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      localStorage.setItem('quantumsrc_sidebar_width', String(this.el.offsetWidth));
     };
 
     handle.addEventListener('mousedown', (e) => {

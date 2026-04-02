@@ -151,6 +151,18 @@ export class Sandbox {
     return String(val);
   }
 
+  /** Return a JS object/array inside the sandbox (not a JSON string) */
+  private jsonToHandle(ctx: QuickJSContext, data: unknown) {
+    const json = JSON.stringify(data);
+    const result = ctx.evalCode(`(${json})`);
+    if (result.error) {
+      const err = result.error;
+      err.dispose();
+      return ctx.newString(json); // fallback to string
+    }
+    return result.value;
+  }
+
   private injectAPI(ctx: QuickJSContext, state: GameState): void {
     const consoleObj = ctx.newObject();
     const logFn = ctx.newFunction('log', (...args) => {
@@ -192,7 +204,7 @@ export class Sandbox {
         symbol: s.symbol,
         price: Math.round(s.price * 100) / 100,
       }));
-      return ctx.newString(JSON.stringify(data));
+      return this.jsonToHandle(ctx, data);
     });
     ctx.setProp(gameObj, 'getStocks', getStocks);
     getStocks.dispose();
@@ -261,7 +273,7 @@ export class Sandbox {
           stockImpacts,
         };
       });
-      return ctx.newString(JSON.stringify(events));
+      return this.jsonToHandle(ctx, events);
     });
     ctx.setProp(gameObj, 'getNews', getNews);
     getNews.dispose();
@@ -271,7 +283,7 @@ export class Sandbox {
       for (const [sym, qty] of state.portfolio) {
         if (qty > 0) data[sym] = qty;
       }
-      return ctx.newString(JSON.stringify(data));
+      return this.jsonToHandle(ctx, data);
     });
     ctx.setProp(gameObj, 'getPortfolio', getPortfolio);
     getPortfolio.dispose();
@@ -288,7 +300,7 @@ export class Sandbox {
         currentRound: s.currentRound,
         hasBet: !!s.playerBets,
       }));
-      return ctx.newString(JSON.stringify(data));
+      return this.jsonToHandle(ctx, data);
     });
     ctx.setProp(gameObj, 'getSports', getSports);
     getSports.dispose();
@@ -296,7 +308,7 @@ export class Sandbox {
     const getTeams = ctx.newFunction('getTeams', (sportIdHandle) => {
       const sportId = ctx.dump(sportIdHandle) as string;
       const sport = state.sportsLeague.getSport(sportId);
-      if (!sport) return ctx.newString(JSON.stringify({ error: `Unknown sport: ${sportId}` }));
+      if (!sport) return this.jsonToHandle(ctx, { error: `Unknown sport: ${sportId}` });
       const data = sport.teams.map(t => ({
         id: t.id,
         name: t.name,
@@ -305,7 +317,7 @@ export class Sandbox {
         wins: t.wins,
         losses: t.losses,
       }));
-      return ctx.newString(JSON.stringify(data));
+      return this.jsonToHandle(ctx, data);
     });
     ctx.setProp(gameObj, 'getTeams', getTeams);
     getTeams.dispose();
@@ -313,7 +325,7 @@ export class Sandbox {
     const getBracket = ctx.newFunction('getBracket', (sportIdHandle) => {
       const sportId = ctx.dump(sportIdHandle) as string;
       const sport = state.sportsLeague.getSport(sportId);
-      if (!sport) return ctx.newString(JSON.stringify({ error: `Unknown sport: ${sportId}` }));
+      if (!sport) return this.jsonToHandle(ctx, { error: `Unknown sport: ${sportId}` });
       const data = sport.bracket.map(round => ({
         name: round.name,
         matches: round.matches.map(m => ({
@@ -324,7 +336,7 @@ export class Sandbox {
           score: m.score,
         })),
       }));
-      return ctx.newString(JSON.stringify(data));
+      return this.jsonToHandle(ctx, data);
     });
     ctx.setProp(gameObj, 'getBracket', getBracket);
     getBracket.dispose();
