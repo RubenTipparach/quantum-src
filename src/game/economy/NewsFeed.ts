@@ -3,7 +3,7 @@ import type { ResearchNode } from '../research/ResearchTree';
 export interface NewsEvent {
   id: number;
   headline: string;
-  category: 'world' | 'company' | 'ceo' | 'market' | 'research';
+  category: 'world' | 'company' | 'ceo' | 'market' | 'research' | 'sector';
   /** Which stock symbols are affected. Empty = all stocks. */
   targets: string[];
   /** Price impact multiplier per tick. Positive = bullish, negative = bearish. */
@@ -16,8 +16,13 @@ export interface NewsEvent {
   createdAt: number;
 }
 
-// Templates for procedural headline generation
-const WORLD_EVENTS_NEGATIVE: { headline: string; impact: [number, number] }[] = [
+type HeadlineTemplate = { headline: string; impact: [number, number] };
+
+// ────────────────────────────────────────────────────────────
+//  WORLD EVENTS — affect ALL stocks
+// ────────────────────────────────────────────────────────────
+
+const WORLD_EVENTS_NEGATIVE: HeadlineTemplate[] = [
   { headline: 'Armed conflict erupts between {country1} and {country2} — global markets shaken', impact: [-0.04, -0.12] },
   { headline: 'Pandemic outbreak reported in {country1} — WHO declares emergency', impact: [-0.05, -0.15] },
   { headline: 'Regime change in {country1} sparks political instability across the region', impact: [-0.03, -0.08] },
@@ -30,7 +35,7 @@ const WORLD_EVENTS_NEGATIVE: { headline: string; impact: [number, number] }[] = 
   { headline: 'Mass protests erupt in {country1} — government declares martial law', impact: [-0.02, -0.07] },
 ];
 
-const WORLD_EVENTS_POSITIVE: { headline: string; impact: [number, number] }[] = [
+const WORLD_EVENTS_POSITIVE: HeadlineTemplate[] = [
   { headline: 'Historic peace deal signed between {country1} and {country2}', impact: [0.03, 0.08] },
   { headline: '{country1} announces massive economic stimulus package', impact: [0.04, 0.10] },
   { headline: 'Global trade agreement ratified — markets rally', impact: [0.03, 0.09] },
@@ -39,7 +44,11 @@ const WORLD_EVENTS_POSITIVE: { headline: string; impact: [number, number] }[] = 
   { headline: 'Central banks coordinate rate cuts — liquidity floods markets', impact: [0.04, 0.10] },
 ];
 
-const CEO_BOASTS: { headline: string; impact: [number, number] }[] = [
+// ────────────────────────────────────────────────────────────
+//  CEO EVENTS — affect one company
+// ────────────────────────────────────────────────────────────
+
+const CEO_BOASTS: HeadlineTemplate[] = [
   { headline: '{company} CEO: "We will dominate the market within 2 years"', impact: [0.02, 0.06] },
   { headline: '{company} CEO promises "revolutionary product" at upcoming keynote', impact: [0.03, 0.08] },
   { headline: '{company} CEO: "Revenue will triple by next quarter"', impact: [0.04, 0.10] },
@@ -48,7 +57,7 @@ const CEO_BOASTS: { headline: string; impact: [number, number] }[] = [
   { headline: '{company} CEO announces aggressive expansion into new markets', impact: [0.03, 0.07] },
 ];
 
-const CEO_GAFFES: { headline: string; impact: [number, number] }[] = [
+const CEO_GAFFES: HeadlineTemplate[] = [
   { headline: '{company} CEO caught in accounting scandal — shares plummet', impact: [-0.05, -0.12] },
   { headline: '{company} CEO makes controversial remarks — boycott trending', impact: [-0.03, -0.08] },
   { headline: '{company} CEO abruptly resigns — no successor named', impact: [-0.06, -0.14] },
@@ -56,7 +65,11 @@ const CEO_GAFFES: { headline: string; impact: [number, number] }[] = [
   { headline: '{company} CEO under investigation for insider trading', impact: [-0.04, -0.10] },
 ];
 
-const COMPANY_EVENTS_POSITIVE: { headline: string; impact: [number, number] }[] = [
+// ────────────────────────────────────────────────────────────
+//  COMPANY EVENTS — affect one company
+// ────────────────────────────────────────────────────────────
+
+const COMPANY_EVENTS_POSITIVE: HeadlineTemplate[] = [
   { headline: '{company} reports earnings beating expectations by 40%', impact: [0.04, 0.12] },
   { headline: '{company} secures massive government contract', impact: [0.05, 0.10] },
   { headline: '{company} announces strategic partnership with industry giant', impact: [0.03, 0.08] },
@@ -65,7 +78,7 @@ const COMPANY_EVENTS_POSITIVE: { headline: string; impact: [number, number] }[] 
   { headline: '{company} acquires key competitor — market share doubles', impact: [0.05, 0.12] },
 ];
 
-const COMPANY_EVENTS_NEGATIVE: { headline: string; impact: [number, number] }[] = [
+const COMPANY_EVENTS_NEGATIVE: HeadlineTemplate[] = [
   { headline: '{company} misses earnings — revenue down 30%', impact: [-0.05, -0.12] },
   { headline: '{company} issues product recall after critical defect found', impact: [-0.04, -0.09] },
   { headline: '{company} loses major lawsuit — $2B in damages', impact: [-0.06, -0.14] },
@@ -74,7 +87,11 @@ const COMPANY_EVENTS_NEGATIVE: { headline: string; impact: [number, number] }[] 
   { headline: '{company} factory fire halts production for weeks', impact: [-0.03, -0.08] },
 ];
 
-const MARKET_EVENTS: { headline: string; impact: [number, number] }[] = [
+// ────────────────────────────────────────────────────────────
+//  MARKET-WIDE EVENTS — affect all stocks
+// ────────────────────────────────────────────────────────────
+
+const MARKET_EVENTS: HeadlineTemplate[] = [
   { headline: 'Massive sell-off triggered by algorithmic trading bots', impact: [-0.06, -0.15] },
   { headline: 'Institutional investors pile into tech stocks — buying frenzy', impact: [0.05, 0.12] },
   { headline: 'Market flash crash — exchanges halt trading briefly', impact: [-0.08, -0.18] },
@@ -82,6 +99,75 @@ const MARKET_EVENTS: { headline: string; impact: [number, number] }[] = [
   { headline: 'Hedge fund liquidation triggers cascade of sell orders', impact: [-0.05, -0.12] },
   { headline: 'Record inflows into index funds — broad market rally', impact: [0.03, 0.08] },
 ];
+
+// ────────────────────────────────────────────────────────────
+//  SECTOR EVENTS — affect all stocks in a sector
+// ────────────────────────────────────────────────────────────
+
+type SectorEventTemplate = HeadlineTemplate & { sectors: string[] };
+
+const SECTOR_EVENTS: SectorEventTemplate[] = [
+  // Oil & Energy
+  { headline: 'OPEC slashes production quotas — oil prices skyrocket', sectors: ['oil', 'energy'], impact: [0.05, 0.12] },
+  { headline: 'Major oil spill triggers environmental catastrophe — fossil fuel stocks tank', sectors: ['oil'], impact: [-0.06, -0.14] },
+  { headline: 'Renewable energy subsidies doubled by G7 nations', sectors: ['energy'], impact: [0.04, 0.10] },
+  { headline: 'New pipeline construction greenlit — energy sector rallies', sectors: ['oil', 'energy'], impact: [0.03, 0.08] },
+  { headline: 'Carbon tax legislation passed — fossil fuel companies face massive costs', sectors: ['oil'], impact: [-0.05, -0.12] },
+  { headline: 'Oil reserves discovered in {country1} — global supply outlook shifts', sectors: ['oil', 'energy'], impact: [-0.03, -0.07] },
+
+  // Finance
+  { headline: 'Federal Reserve raises interest rates — banking stocks surge', sectors: ['finance'], impact: [0.04, 0.10] },
+  { headline: 'Major bank stress test failures — financial sector shaken', sectors: ['finance'], impact: [-0.05, -0.12] },
+  { headline: 'Cryptocurrency regulation announced — traditional finance benefits', sectors: ['finance', 'crypto'], impact: [0.03, -0.06] },
+  { headline: 'Global lending crisis: defaults spike across commercial real estate', sectors: ['finance'], impact: [-0.04, -0.10] },
+  { headline: 'Fintech deregulation wave — banking sector poised for growth', sectors: ['finance'], impact: [0.03, 0.08] },
+
+  // Medical / Biotech
+  { headline: 'FDA fast-tracks approval for revolutionary gene therapy', sectors: ['medical'], impact: [0.05, 0.14] },
+  { headline: 'Clinical trial disaster: major drug fails Phase III — biotech sells off', sectors: ['medical'], impact: [-0.06, -0.15] },
+  { headline: 'Global health initiative announces $50B fund for biotech research', sectors: ['medical'], impact: [0.04, 0.10] },
+  { headline: 'Patent cliff hits pharmaceutical giants — generic competition looms', sectors: ['medical'], impact: [-0.03, -0.08] },
+  { headline: 'CRISPR breakthrough opens door to personalized medicine', sectors: ['medical'], impact: [0.04, 0.12] },
+
+  // Defense / Military
+  { headline: 'NATO announces $200B defense spending increase', sectors: ['defense'], impact: [0.06, 0.14] },
+  { headline: 'Peace talks progress — military spending expected to decline', sectors: ['defense'], impact: [-0.04, -0.09] },
+  { headline: 'New hypersonic missile contract awarded — defense stocks rally', sectors: ['defense'], impact: [0.04, 0.10] },
+  { headline: 'Arms export ban enacted — defense contractors face revenue squeeze', sectors: ['defense'], impact: [-0.05, -0.12] },
+  { headline: 'Autonomous drone warfare treaty collapses — defense sector surges', sectors: ['defense'], impact: [0.05, 0.11] },
+
+  // Industrial
+  { headline: 'Global infrastructure bill passes — industrial stocks boom', sectors: ['industrial'], impact: [0.05, 0.12] },
+  { headline: 'Steel tariffs imposed — manufacturing costs soar', sectors: ['industrial'], impact: [-0.03, -0.08] },
+  { headline: 'Megaproject construction boom in {country1} — heavy industry rallies', sectors: ['industrial'], impact: [0.04, 0.09] },
+  { headline: 'Supply chain crisis worsens — industrial production halted', sectors: ['industrial'], impact: [-0.04, -0.10] },
+
+  // Tech
+  { headline: 'Antitrust ruling breaks up major tech monopoly — competitors surge', sectors: ['tech'], impact: [0.03, 0.08] },
+  { headline: 'Chip shortage worsens — semiconductor stocks in turmoil', sectors: ['tech', 'data'], impact: [-0.04, -0.10] },
+  { headline: 'AI regulation framework proposed — tech sector volatility spikes', sectors: ['tech'], impact: [-0.02, -0.06] },
+  { headline: 'Cloud computing demand explodes — data center stocks rally', sectors: ['data', 'telecom'], impact: [0.04, 0.10] },
+
+  // Crypto
+  { headline: 'Major nation announces Bitcoin as legal tender', sectors: ['crypto'], impact: [0.08, 0.18] },
+  { headline: 'Crypto exchange hack: billions stolen — investor confidence shattered', sectors: ['crypto'], impact: [-0.08, -0.20] },
+  { headline: 'Institutional adoption of blockchain surges — crypto legitimized', sectors: ['crypto', 'finance'], impact: [0.05, 0.12] },
+  { headline: 'Crypto mining banned in {country1} — hash rates plummet', sectors: ['crypto', 'energy'], impact: [-0.06, -0.14] },
+
+  // Quantum
+  { headline: 'Quantum supremacy achieved — tech industry braces for disruption', sectors: ['quantum', 'tech'], impact: [0.06, 0.15] },
+  { headline: 'Quantum computing startup collapses — was it all hype?', sectors: ['quantum'], impact: [-0.06, -0.14] },
+  { headline: 'Government invests $10B in quantum research initiative', sectors: ['quantum'], impact: [0.05, 0.12] },
+  { headline: 'Quantum encryption threat forces banking security overhaul', sectors: ['quantum', 'finance'], impact: [0.04, 0.08] },
+
+  // Telecom
+  { headline: 'Next-gen satellite network launched — telecom sector surges', sectors: ['telecom'], impact: [0.04, 0.10] },
+  { headline: 'Major telecom infrastructure failure — millions lose connectivity', sectors: ['telecom'], impact: [-0.05, -0.11] },
+];
+
+// ────────────────────────────────────────────────────────────
+//  LOOKUPS
+// ────────────────────────────────────────────────────────────
 
 const COUNTRIES = [
   'United States', 'China', 'Russia', 'India', 'Brazil', 'Japan',
@@ -92,48 +178,74 @@ const COUNTRIES = [
 
 const STOCK_NAMES: Record<string, string> = {
   CPUX: 'CompuTech',
-  NTWK: 'NetLink',
-  ENRG: 'PowerGrid',
-  DATA: 'DataVault',
   ROBO: 'AutoMind',
+  NTWK: 'NetLink',
+  DATA: 'DataVault',
+  ENRG: 'PowerGrid',
+  PETX: 'PetroMax',
+  BNKR: 'MegaBank',
+  GENE: 'GenLife',
+  TITN: 'TitanForge',
+  SHLD: 'Sentinel',
+  CRYP: 'CryptoLedger',
+  QBIT: 'QuantumLeap',
+};
+
+/** Sector → stock symbols lookup (built once, used for sector events) */
+const SECTOR_STOCKS: Record<string, string[]> = {
+  tech:       ['CPUX', 'ROBO'],
+  telecom:    ['NTWK'],
+  data:       ['DATA'],
+  energy:     ['ENRG'],
+  oil:        ['PETX'],
+  finance:    ['BNKR'],
+  medical:    ['GENE'],
+  industrial: ['TITN'],
+  defense:    ['SHLD'],
+  crypto:     ['CRYP'],
+  quantum:    ['QBIT'],
 };
 
 // Map research node IDs to affected stock symbols
 const RESEARCH_STOCK_MAP: Record<string, string[]> = {
-  basic_trading: ['CPUX', 'DATA'],
-  market_analysis: ['DATA', 'CPUX'],
-  overclock: ['CPUX'],
-  multi_core: ['CPUX', 'ROBO'],
-  hash_mining: ['ENRG', 'NTWK'],
-  gpu_compute: ['CPUX', 'ROBO'],
-  gpu_farm: ['ENRG', 'CPUX'],
-  blockchain_exploit: ['NTWK', 'DATA'],
-  quantum_basics: ['CPUX', 'ROBO'],
-  encryption_breaking: ['NTWK', 'DATA'],
-  market_collapse: ['DATA', 'NTWK', 'CPUX'],
-  subatomic_compute: ['CPUX', 'ROBO'],
-  energy_synthesis: ['ENRG'],
-  megastructure_foundation: ['ENRG', 'ROBO'],
-  post_scarcity: ['CPUX', 'NTWK', 'ENRG', 'DATA', 'ROBO'],
+  basic_trading:          ['CPUX', 'DATA', 'BNKR'],
+  market_analysis:        ['DATA', 'CPUX', 'BNKR'],
+  overclock:              ['CPUX'],
+  multi_core:             ['CPUX', 'ROBO'],
+  hash_mining:            ['CRYP', 'ENRG', 'NTWK'],
+  gpu_compute:            ['CPUX', 'ROBO', 'CRYP'],
+  gpu_farm:               ['ENRG', 'PETX', 'CPUX'],
+  blockchain_exploit:     ['CRYP', 'BNKR', 'DATA'],
+  quantum_basics:         ['QBIT', 'CPUX', 'ROBO'],
+  encryption_breaking:    ['QBIT', 'BNKR', 'NTWK', 'SHLD'],
+  market_collapse:        ['BNKR', 'DATA', 'NTWK', 'CPUX'],
+  subatomic_compute:      ['CPUX', 'ROBO', 'QBIT'],
+  energy_synthesis:       ['ENRG', 'PETX', 'TITN'],
+  megastructure_foundation: ['TITN', 'ENRG', 'SHLD', 'ROBO'],
+  post_scarcity:          ['CPUX', 'NTWK', 'ENRG', 'DATA', 'ROBO', 'PETX', 'BNKR', 'GENE', 'TITN', 'SHLD', 'CRYP', 'QBIT'],
 };
 
 const RESEARCH_HEADLINES: Record<string, string> = {
-  basic_trading: 'New algorithmic trading methods discovered — CompuTech and DataVault surge',
-  market_analysis: 'Breakthrough in market pattern detection — DataVault leads the charge',
-  overclock: 'CPU overclocking breakthrough sends CompuTech shares soaring',
-  multi_core: 'Multi-core revolution: CompuTech and AutoMind stocks rally',
-  hash_mining: 'Crypto mining goes mainstream — PowerGrid and NetLink benefit',
-  gpu_compute: 'GPU compute era begins — massive implications for tech sector',
-  gpu_farm: 'Industrial-scale GPU farms reshape energy and compute markets',
-  blockchain_exploit: 'Blockchain vulnerability discovered — NetLink and DataVault in focus',
-  quantum_basics: 'Quantum computing breakthrough stuns the world — tech stocks explode',
-  encryption_breaking: 'RSA encryption broken — cybersecurity stocks in turmoil',
-  market_collapse: 'Financial system disrupted — unprecedented market volatility',
-  subatomic_compute: 'Sub-atomic computing achieved — reality itself is programmable',
-  energy_synthesis: 'Unlimited energy unlocked — PowerGrid stock goes parabolic',
-  megastructure_foundation: 'Megastructure engineering feasible — industrial revolution 5.0',
-  post_scarcity: 'Post-scarcity protocol activated — the economy will never be the same',
+  basic_trading:          'Algorithmic trading methods discovered — CompuTech, DataVault, and MegaBank surge',
+  market_analysis:        'Breakthrough in market pattern detection — financial sector leads the charge',
+  overclock:              'CPU overclocking breakthrough sends CompuTech shares soaring',
+  multi_core:             'Multi-core revolution: CompuTech and AutoMind stocks rally',
+  hash_mining:            'Crypto mining goes mainstream — CryptoLedger explodes, energy demand soars',
+  gpu_compute:            'GPU compute era begins — massive implications for tech and crypto sectors',
+  gpu_farm:               'Industrial-scale GPU farms reshape energy markets worldwide',
+  blockchain_exploit:     'Blockchain vulnerability discovered — CryptoLedger and MegaBank in focus',
+  quantum_basics:         'Quantum computing breakthrough stuns the world — QuantumLeap and tech stocks explode',
+  encryption_breaking:    'RSA encryption broken — banking, defense, and telecom sectors in turmoil',
+  market_collapse:        'Financial system disrupted — unprecedented volatility across all sectors',
+  subatomic_compute:      'Sub-atomic computing achieved — reality itself is programmable',
+  energy_synthesis:       'Unlimited energy unlocked — PowerGrid parabolic, PetroMax in freefall',
+  megastructure_foundation: 'Megastructure engineering feasible — industrial revolution 5.0 begins',
+  post_scarcity:          'Post-scarcity protocol activated — the economy will never be the same',
 };
+
+// ────────────────────────────────────────────────────────────
+//  HELPERS
+// ────────────────────────────────────────────────────────────
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
@@ -143,6 +255,10 @@ function randRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+// ────────────────────────────────────────────────────────────
+//  NEWS FEED
+// ────────────────────────────────────────────────────────────
+
 export class NewsFeed {
   events: NewsEvent[] = [];
   private nextId = 1;
@@ -150,9 +266,9 @@ export class NewsFeed {
   private stockSymbols: string[];
 
   /** Min ticks between random news generation */
-  private minInterval = 8;
+  private minInterval = 6;
   /** Max ticks between random news generation */
-  private maxInterval = 25;
+  private maxInterval = 20;
   private nextEventAt = 0;
 
   /** Max visible news items */
@@ -160,7 +276,7 @@ export class NewsFeed {
 
   constructor(stockSymbols: string[]) {
     this.stockSymbols = stockSymbols;
-    this.nextEventAt = Math.floor(randRange(3, 8)); // first event comes relatively quickly
+    this.nextEventAt = Math.floor(randRange(3, 8));
   }
 
   /** Called each market tick */
@@ -190,7 +306,6 @@ export class NewsFeed {
     for (const ev of this.events) {
       if (ev.remaining <= 0) continue;
       if (ev.targets.length === 0 || ev.targets.includes(symbol)) {
-        // Fade effect: stronger at start, weaker as it decays
         const fade = ev.remaining / ev.duration;
         total += ev.impact * fade;
       }
@@ -224,7 +339,7 @@ export class NewsFeed {
   /** Generate a news event when the player makes a large trade */
   onLargeTrade(symbol: string, isBuy: boolean, quantity: number, pricePerShare: number): void {
     const totalValue = quantity * pricePerShare;
-    if (totalValue < 500) return; // Only notable trades
+    if (totalValue < 500) return;
 
     const companyName = STOCK_NAMES[symbol] ?? symbol;
     const headline = isBuy
@@ -244,18 +359,16 @@ export class NewsFeed {
   private generateRandomEvent(): void {
     const roll = Math.random();
 
-    if (roll < 0.25) {
-      // World event
+    if (roll < 0.18) {
       this.generateWorldEvent();
-    } else if (roll < 0.50) {
-      // CEO news
+    } else if (roll < 0.35) {
       this.generateCEOEvent();
-    } else if (roll < 0.75) {
-      // Company event
+    } else if (roll < 0.55) {
       this.generateCompanyEvent();
-    } else {
-      // Market-wide event
+    } else if (roll < 0.70) {
       this.generateMarketEvent();
+    } else {
+      this.generateSectorEvent();
     }
   }
 
@@ -271,7 +384,6 @@ export class NewsFeed {
       .replace('{country2}', country2);
 
     const [minImpact, maxImpact] = template.impact;
-    // World events affect all stocks
     this.addEvent({
       headline,
       category: 'world',
@@ -327,6 +439,30 @@ export class NewsFeed {
       targets: [],
       impact: randRange(minImpact, maxImpact),
       duration: Math.floor(randRange(6, 15)),
+    });
+  }
+
+  private generateSectorEvent(): void {
+    const template = pick(SECTOR_EVENTS);
+    const [minImpact, maxImpact] = template.impact;
+
+    // Resolve sector names to stock symbols
+    const targets: string[] = [];
+    for (const sector of template.sectors) {
+      const syms = SECTOR_STOCKS[sector];
+      if (syms) targets.push(...syms);
+    }
+
+    // Substitute country placeholder if present
+    const country1 = pick(COUNTRIES);
+    const headline = template.headline.replace('{country1}', country1);
+
+    this.addEvent({
+      headline,
+      category: 'sector',
+      targets: [...new Set(targets)],
+      impact: randRange(minImpact, maxImpact),
+      duration: Math.floor(randRange(8, 22)),
     });
   }
 

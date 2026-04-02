@@ -247,6 +247,7 @@ export class Sidebar {
         : ev.category === 'ceo' ? '&#128100;'
         : ev.category === 'research' ? '&#128300;'
         : ev.category === 'market' ? '&#128200;'
+        : ev.category === 'sector' ? '&#128202;'
         : '&#127970;';
       const impactColor = isBullish ? '#00cc66' : '#dd3333';
       const opacity = isActive ? '1' : '0.4';

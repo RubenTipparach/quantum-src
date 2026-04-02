@@ -8,9 +8,12 @@ export interface Candle {
   volume: number;
 }
 
+export type Sector = 'tech' | 'telecom' | 'data' | 'energy' | 'oil' | 'finance' | 'medical' | 'industrial' | 'defense' | 'crypto' | 'quantum';
+
 export interface Stock {
   symbol: string;
   name: string;
+  sector: Sector;
   price: number;
   volatility: number;
   /** Base drift removed — price is now pure random walk + news. */
@@ -34,18 +37,34 @@ export class StockMarket {
   newsFeed: NewsFeed | null = null;
 
   constructor() {
-    const init = (symbol: string, name: string, price: number, volatility: number): Stock => ({
-      symbol, name, price, volatility,
+    const init = (symbol: string, name: string, sector: Sector, price: number, volatility: number): Stock => ({
+      symbol, name, sector, price, volatility,
       momentum: 0,
       candles: [{ open: price, high: price, low: price, close: price, volume: 100 }],
     });
 
     this.stocks = [
-      init('CPUX', 'CompuTech Corp', 12.50, 0.04),
-      init('NTWK', 'NetLink Systems', 8.00, 0.06),
-      init('ENRG', 'PowerGrid Inc', 25.00, 0.03),
-      init('DATA', 'DataVault Ltd', 5.00, 0.08),
-      init('ROBO', 'AutoMind AI', 3.00, 0.10),
+      // Tech — competing hardware/software giants
+      init('CPUX', 'CompuTech Corp',        'tech',       12.50, 0.04),
+      init('ROBO', 'AutoMind AI',           'tech',        3.00, 0.10),
+      // Telecom & Data
+      init('NTWK', 'NetLink Systems',       'telecom',     8.00, 0.06),
+      init('DATA', 'DataVault Ltd',         'data',        5.00, 0.08),
+      // Energy & Oil
+      init('ENRG', 'PowerGrid Inc',         'energy',     25.00, 0.03),
+      init('PETX', 'PetroMax Global',       'oil',        42.00, 0.035),
+      // Finance
+      init('BNKR', 'MegaBank Corp',         'finance',    35.00, 0.04),
+      // Medical / Biotech
+      init('GENE', 'GenLife Pharma',         'medical',    18.00, 0.09),
+      // Industrial / Manufacturing
+      init('TITN', 'TitanForge Industries',  'industrial', 20.00, 0.035),
+      // Defense / Military
+      init('SHLD', 'Sentinel Defense',       'defense',    30.00, 0.05),
+      // Crypto — volatile, ties to crypto era
+      init('CRYP', 'CryptoLedger Inc',      'crypto',      1.50, 0.14),
+      // Quantum — speculative, ties to quantum era
+      init('QBIT', 'QuantumLeap Labs',      'quantum',     0.80, 0.12),
     ];
   }
 
