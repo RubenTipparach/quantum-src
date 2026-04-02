@@ -73,17 +73,26 @@ export class StockChart {
     if (chartW < 20 || chartH < 20) return;
 
     const allCandles = stock.candles;
-    const tfCandles = allCandles.slice(-this.timeframe);
+    const realCandles = allCandles.slice(-this.timeframe);
 
-    if (tfCandles.length === 0) return;
+    if (realCandles.length === 0) return;
 
-    // Price range
+    // Pad front with empty candles if not enough data to fill the timeframe
+    const padCount = this.timeframe - realCandles.length;
+    const emptyCandle: Candle = { open: 0, high: 0, low: 0, close: 0, volume: 0 };
+    const tfCandles: Candle[] = padCount > 0
+      ? [...Array.from({ length: padCount }, () => emptyCandle), ...realCandles]
+      : realCandles;
+
+    // Price range (skip empty padding candles)
     let minP = Infinity, maxP = -Infinity, maxVol = 0;
     for (const c of tfCandles) {
+      if (c.close === 0) continue; // skip padding
       minP = Math.min(minP, c.low);
       maxP = Math.max(maxP, c.high);
       maxVol = Math.max(maxVol, c.volume);
     }
+    if (minP === Infinity) return; // all padding, nothing to draw
     const range = maxP - minP || 1;
     minP -= range * 0.05;
     maxP += range * 0.05;
@@ -172,6 +181,7 @@ export class StockChart {
 
     for (let i = 0; i < numCandles; i++) {
       const c = candles[i]!;
+      if (c.close === 0) continue; // skip padding candles
       const cx = startX + i * barStep + barW / 2;
       if (cx > padding.left + chartW + barW) break;
       const isBull = c.close >= c.open;
@@ -211,24 +221,34 @@ export class StockChart {
     const numCandles = candles.length;
     const gap = chartW / Math.max(1, numCandles - 1);
 
-    // Area fill
+    // Find first real (non-padding) candle index
+    let firstReal = 0;
+    while (firstReal < numCandles && candles[firstReal]!.close === 0) firstReal++;
+    if (firstReal >= numCandles - 1) return;
+
+    const bottomY = padding.top + (totalH - padding.top - padding.bottom - volumeH);
+
+    // Area fill — start from first real candle
     ctx.beginPath();
-    ctx.moveTo(padding.left, priceToY(candles[0]!.close));
-    for (let i = 0; i < numCandles; i++) {
+    ctx.moveTo(padding.left + firstReal * gap, priceToY(candles[firstReal]!.close));
+    for (let i = firstReal; i < numCandles; i++) {
+      if (candles[i]!.close === 0) continue;
       ctx.lineTo(padding.left + i * gap, priceToY(candles[i]!.close));
     }
-    ctx.lineTo(padding.left + (numCandles - 1) * gap, padding.top + (totalH - padding.top - padding.bottom - volumeH));
-    ctx.lineTo(padding.left, padding.top + (totalH - padding.top - padding.bottom - volumeH));
+    ctx.lineTo(padding.left + (numCandles - 1) * gap, bottomY);
+    ctx.lineTo(padding.left + firstReal * gap, bottomY);
     ctx.closePath();
     ctx.fillStyle = COLORS.lineFill;
     ctx.fill();
 
     // Line
     ctx.beginPath();
-    for (let i = 0; i < numCandles; i++) {
+    let started = false;
+    for (let i = firstReal; i < numCandles; i++) {
+      if (candles[i]!.close === 0) continue;
       const px = padding.left + i * gap;
       const py = priceToY(candles[i]!.close);
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      if (!started) { ctx.moveTo(px, py); started = true; } else ctx.lineTo(px, py);
     }
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 1.5;
@@ -251,6 +271,7 @@ export class StockChart {
     const barW = Math.max(MIN_BAR_WIDTH, barStep - BAR_GAP);
     for (let i = 0; i < numCandles; i++) {
       const c = candles[i]!;
+      if (c.close === 0) continue; // skip padding
       const cx = padding.left + i * barStep + barW / 2;
       if (cx > padding.left + chartW + barW) break;
       const volH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
