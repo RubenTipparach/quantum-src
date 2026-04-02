@@ -104,8 +104,17 @@ export class Sidebar {
     const modal = document.createElement('div');
     modal.id = 'news-modal';
 
+    // Helper to build a hoverable stock tag with tooltip
+    const makeStockTag = (symbol: string) => {
+      const stock = stocks.find(s => s.symbol === symbol);
+      if (!stock) return `<span style="color:#88bbaa;">${symbol}</span>`;
+      const escaped = stock.description.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+      const sectorLabel = stock.sector.charAt(0).toUpperCase() + stock.sector.slice(1);
+      return `<span class="stock-tag" data-tooltip="${stock.name}\n${sectorLabel} sector\n\n${escaped}">${symbol}</span>`;
+    };
+
     const eventsHtml = events.length === 0
-      ? '<div style="color:#334455;padding:16px;">No news yet...</div>'
+      ? '<div style="color:#668877;padding:16px;">No news yet...</div>'
       : events.map(ev => {
         const isActive = ev.remaining > 0;
         const isBullish = ev.impact > 0;
@@ -118,27 +127,28 @@ export class Sidebar {
         const impactSign = isBullish ? '+' : '';
         const impactPct = (ev.impact * 100).toFixed(2);
         const impactColor = isBullish ? '#00cc66' : '#dd3333';
-        const statusDot = isActive ? `<span style="color:${impactColor};margin-right:4px;">&#9679;</span>` : '';
+        const dimImpactColor = isBullish ? '#1a6633' : '#661a1a';
+        const statusColor = isActive ? impactColor : '#446666';
+        const statusDot = `<span style="color:${statusColor};margin-right:4px;">&#9679;</span>`;
 
         // Show which stocks are affected and by how much
         const affectedStocks = ev.targets.length === 0 ? stocks : stocks.filter(s => ev.targets.includes(s.symbol));
         const stockImpacts = affectedStocks.map(s => {
-          const pts = s.price * ev.impact * (isActive ? ev.remaining / ev.duration : 0);
-          const ptsStr = pts === 0 && !isActive
-            ? `<span style="color:#334455;">ended</span>`
-            : `<span style="color:${impactColor};">${impactSign}${(s.price * ev.impact).toFixed(2)} pts</span>`;
-          return `<span class="news-stock-impact"><span style="color:#88bbaa;">${s.symbol}</span> ${ptsStr}</span>`;
+          const ptsVal = s.price * ev.impact;
+          const ptsColor = isActive ? impactColor : dimImpactColor;
+          const ptsStr = `<span style="color:${ptsColor};">${impactSign}${ptsVal.toFixed(2)}</span>`;
+          return `<span class="news-stock-impact">${makeStockTag(s.symbol)} ${ptsStr}</span>`;
         }).join('');
 
-        const targetLabel = ev.targets.length === 0 ? 'ALL STOCKS' : ev.targets.join(', ');
+        const targetLabel = ev.targets.length === 0 ? 'ALL STOCKS' : ev.targets.map(t => makeStockTag(t)).join(' ');
 
-        return `<div class="news-modal-item" style="opacity:${isActive ? '1' : '0.5'};">
+        return `<div class="news-modal-item${isActive ? '' : ' news-expired'}">
           <div class="news-modal-headline">${statusDot}${icon} ${ev.headline}</div>
           <div class="news-modal-meta">
-            <span style="color:${impactColor};">${impactSign}${impactPct}% per tick</span>
-            <span style="color:#446666;">${ev.category.toUpperCase()}</span>
-            <span style="color:#446666;">${targetLabel}</span>
-            ${isActive ? `<span style="color:#ffaa22;">${ev.remaining} ticks left</span>` : '<span style="color:#334455;">expired</span>'}
+            <span style="color:${isActive ? impactColor : '#556666'};">${impactSign}${impactPct}%/tick</span>
+            <span style="color:#668877;">${ev.category.toUpperCase()}</span>
+            <span>${targetLabel}</span>
+            <span style="color:${isActive ? '#ffaa22' : '#446655'};">${isActive ? `${ev.remaining} ticks left` : 'expired'}</span>
           </div>
           <div class="news-modal-impacts">${stockImpacts}</div>
         </div>`;
@@ -155,6 +165,24 @@ export class Sidebar {
     document.body.appendChild(modal);
     modal.querySelector('.nm-backdrop')!.addEventListener('click', () => modal.remove());
     modal.querySelector('.nm-close')!.addEventListener('click', () => modal.remove());
+
+    // Tooltip support for stock tags inside the modal
+    const body = modal.querySelector('.nm-body')!;
+    body.addEventListener('mouseover', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) this.showTooltip(tag);
+    });
+    body.addEventListener('mouseout', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) this.tooltipEl.style.display = 'none';
+    });
+    body.addEventListener('click', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) {
+        e.stopPropagation();
+        this.showTooltip(tag);
+      }
+    });
   }
 
   setOnLoadMission(fn: (mission: Mission) => void): void {
