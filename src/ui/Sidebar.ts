@@ -25,19 +25,24 @@ export class Sidebar {
     this.tooltipEl.style.display = 'none';
     document.body.appendChild(this.tooltipEl);
 
-    // Global listener to dismiss tooltip on outside tap
+    const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    // Global listener to dismiss tooltip on outside tap/click
     document.addEventListener('click', (e) => {
-      if (!(e.target as HTMLElement)?.classList?.contains('stock-tag')) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.stock-tag') && !target.closest('.stock-tooltip')) {
         this.tooltipEl.style.display = 'none';
       }
     });
 
-    // Delegate hover/click on stock tags
+    // Desktop: hover to show/hide
     this.el.addEventListener('mouseover', (e) => {
+      if (isTouchDevice()) return;
       const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
       if (tag) this.showTooltip(tag);
     });
     this.el.addEventListener('mouseout', (e) => {
+      if (isTouchDevice()) return;
       const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
       if (tag) this.tooltipEl.style.display = 'none';
     });
@@ -90,16 +95,29 @@ export class Sidebar {
   private showTooltip(tag: HTMLElement): void {
     const text = tag.dataset['tooltip'] ?? '';
     if (!text) return;
-    this.tooltipEl.textContent = text;
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    this.tooltipEl.innerHTML = (isMobile ? '<button class="tooltip-close">&times;</button>' : '') +
+      text.replace(/\n/g, '<br>');
     this.tooltipEl.dataset['sym'] = tag.textContent ?? '';
     this.tooltipEl.style.display = 'block';
+    this.tooltipEl.style.pointerEvents = isMobile ? 'auto' : 'none';
+
+    // Position
     const rect = tag.getBoundingClientRect();
     let top = rect.top - this.tooltipEl.offsetHeight - 6;
-    if (top < 4) top = rect.bottom + 6; // flip below if no room above
+    if (top < 4) top = rect.bottom + 6;
     let left = rect.left;
     if (left + 240 > window.innerWidth) left = window.innerWidth - 244;
-    this.tooltipEl.style.top = top + 'px';
+    this.tooltipEl.style.top = Math.max(4, top) + 'px';
     this.tooltipEl.style.left = Math.max(4, left) + 'px';
+
+    // Close button handler (mobile)
+    if (isMobile) {
+      this.tooltipEl.querySelector('.tooltip-close')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.tooltipEl.style.display = 'none';
+      });
+    }
   }
 
   private showNewsModal(): void {
@@ -205,6 +223,7 @@ export class Sidebar {
         <button class="sb-tab" data-stab="market">Market</button>
         <button class="sb-tab" data-stab="sports">Sports</button>
         <button class="sb-tab" data-stab="research">Research</button>
+        <button class="sb-tab" data-stab="docs">Docs</button>
       </div>
 
       <div class="sb-tab-content" id="stab-status">
@@ -264,6 +283,182 @@ export class Sidebar {
             View Full Tree
           </button>
           <div id="sb-research"></div>
+        </div>
+      </div>
+
+      <div class="sb-tab-content" id="stab-docs" style="display:none;">
+        <div class="sb-section docs-section">
+          <h3>API Documentation</h3>
+          <p class="docs-intro">Use these functions in your code editor. All data functions return JSON strings — use <code>JSON.parse()</code> to work with the data.</p>
+
+          <div class="docs-group">
+            <h4>System</h4>
+            <div class="docs-fn">
+              <code>game.getMoney()</code>
+              <span class="docs-ret">Returns: number</span>
+              <p>Current cash balance.</p>
+            </div>
+            <div class="docs-fn">
+              <code>game.getYear()</code>
+              <span class="docs-ret">Returns: number</span>
+              <p>Current in-game year.</p>
+            </div>
+            <div class="docs-fn">
+              <code>game.getEnergy()</code>
+              <span class="docs-ret">Returns: number</span>
+              <p>Current energy level in kWh.</p>
+            </div>
+          </div>
+
+          <div class="docs-group">
+            <h4>Stock Market</h4>
+            <div class="docs-fn">
+              <code>game.getStocks()</code>
+              <span class="docs-ret">Returns: JSON string</span>
+              <p>Array of all stocks with current prices.</p>
+              <pre class="docs-example">let stocks = JSON.parse(game.getStocks());
+// [{symbol: "CPUX", price: 12.50}, ...]
+for (let s of stocks) {
+  console.log(s.symbol + ": $" + s.price);
+}</pre>
+            </div>
+            <div class="docs-fn">
+              <code>game.buy(symbol, quantity)</code>
+              <span class="docs-ret">Returns: string</span>
+              <p>Buy shares of a stock. Deducts cost from money.</p>
+              <pre class="docs-example">game.buy("CPUX", 10);  // Buy 10 shares</pre>
+            </div>
+            <div class="docs-fn">
+              <code>game.sell(symbol, quantity)</code>
+              <span class="docs-ret">Returns: string</span>
+              <p>Sell shares you own. Adds proceeds to money.</p>
+              <pre class="docs-example">game.sell("CPUX", 5);  // Sell 5 shares</pre>
+            </div>
+            <div class="docs-fn">
+              <code>game.getPortfolio()</code>
+              <span class="docs-ret">Returns: JSON string</span>
+              <p>Your current stock holdings.</p>
+              <pre class="docs-example">let p = JSON.parse(game.getPortfolio());
+// {CPUX: 10, ROBO: 5}</pre>
+            </div>
+            <div class="docs-fn">
+              <code>game.getNews()</code>
+              <span class="docs-ret">Returns: JSON string</span>
+              <p>Recent news events with market impact data.</p>
+              <pre class="docs-example">let news = JSON.parse(game.getNews());
+// [{headline: "...", category: "world",
+//   impact: 0.05, active: true,
+//   targets: ["CPUX","ROBO"]}, ...]
+for (let n of news) {
+  if (n.active && n.impact > 0) {
+    console.log("Bullish: " + n.headline);
+  }
+}</pre>
+            </div>
+          </div>
+
+          <div class="docs-group">
+            <h4>Sports Betting</h4>
+            <div class="docs-fn">
+              <code>game.getSports()</code>
+              <span class="docs-ret">Returns: JSON string</span>
+              <p>All sports with season status and betting info.</p>
+              <pre class="docs-example">let sports = JSON.parse(game.getSports());
+// [{id: "football", name: "Football",
+//   phase: "betting", seasonNumber: 1,
+//   bettingTicksLeft: 180, hasBet: false},
+//  ...]</pre>
+            </div>
+            <div class="docs-fn">
+              <code>game.getTeams(sportId)</code>
+              <span class="docs-ret">Returns: JSON string</span>
+              <p>All 16 teams in a sport with ratings and records.</p>
+              <pre class="docs-example">let teams = JSON.parse(
+  game.getTeams("football")
+);
+// [{id: "football_01",
+//   name: "Portland Thunder",
+//   rating: 88, seed: 1,
+//   wins: 2, losses: 0}, ...]
+
+// Sort by rating to find best teams
+teams.sort((a, b) => b.rating - a.rating);
+console.log("Best: " + teams[0].name);</pre>
+            </div>
+            <div class="docs-fn">
+              <code>game.getBracket(sportId)</code>
+              <span class="docs-ret">Returns: JSON string</span>
+              <p>Current tournament bracket with match results.</p>
+              <pre class="docs-example">let bracket = JSON.parse(
+  game.getBracket("football")
+);
+// [{name: "Round of 16", matches: [
+//   {team1Id: "football_01",
+//    team2Id: "football_16",
+//    winnerId: "football_01",
+//    played: true,
+//    score: [4, 2]}, ...]}, ...]</pre>
+            </div>
+            <div class="docs-fn">
+              <code>game.placeBets(sportId, wager, picks)</code>
+              <span class="docs-ret">Returns: string</span>
+              <p>Place bracket predictions. Wager is per-round. Bets lock once placed and can't be changed. Payout = 2^depth per correct pick.</p>
+              <div class="docs-table">
+                <div class="docs-table-row"><span>Depth</span><span>Payout</span><span>Example</span></div>
+                <div class="docs-table-row"><span>1 round ahead</span><span>1:2</span><span>$50 &rarr; $100</span></div>
+                <div class="docs-table-row"><span>2 rounds ahead</span><span>1:4</span><span>$50 &rarr; $200</span></div>
+                <div class="docs-table-row"><span>3 rounds ahead</span><span>1:8</span><span>$50 &rarr; $400</span></div>
+                <div class="docs-table-row"><span>4 rounds ahead</span><span>1:16</span><span>$50 &rarr; $800</span></div>
+              </div>
+              <pre class="docs-example">// Get teams sorted by seed
+let teams = JSON.parse(
+  game.getTeams("football")
+);
+let byId = {};
+for (let t of teams) byId[t.id] = t;
+
+// Bet on top seeds to win
+game.placeBets("football", 100, {
+  round1: [
+    "football_01", "football_08",
+    "football_05", "football_04",
+    "football_06", "football_03",
+    "football_07", "football_02"
+  ],
+  round4: ["football_01"] // champion
+});</pre>
+            </div>
+          </div>
+
+          <div class="docs-group">
+            <h4>Output</h4>
+            <div class="docs-fn">
+              <code>console.log(value)</code>
+              <p>Print to the console output panel.</p>
+            </div>
+            <div class="docs-fn">
+              <code>print(value)</code>
+              <p>Alias for console.log.</p>
+            </div>
+          </div>
+
+          <div class="docs-group">
+            <h4>Stock Symbols</h4>
+            <p class="docs-intro">12 stocks across sectors:</p>
+            <div class="docs-symbols">
+              <span><b>CPUX</b> Tech</span> <span><b>ROBO</b> Tech</span>
+              <span><b>NTWK</b> Telecom</span> <span><b>DATA</b> Data</span>
+              <span><b>ENRG</b> Energy</span> <span><b>PETX</b> Oil</span>
+              <span><b>BNKR</b> Finance</span> <span><b>GENE</b> Medical</span>
+              <span><b>TITN</b> Industrial</span> <span><b>SHLD</b> Defense</span>
+              <span><b>CRYP</b> Crypto</span> <span><b>QBIT</b> Quantum</span>
+            </div>
+          </div>
+
+          <div class="docs-group">
+            <h4>Sport IDs</h4>
+            <p class="docs-intro"><code>"football"</code>, <code>"basketball"</code>, <code>"baseball"</code>, <code>"soccer"</code></p>
+          </div>
         </div>
       </div>
 
