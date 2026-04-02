@@ -27,9 +27,11 @@ export interface Stock {
 const MAX_CANDLES = 600;
 
 /** Mean-reversion strength — pulls momentum back toward 0 */
-const MOMENTUM_DECAY = 0.92;
+const MOMENTUM_DECAY = 0.85;
 /** How much random shock feeds into momentum */
-const MOMENTUM_SENSITIVITY = 0.3;
+const MOMENTUM_SENSITIVITY = 0.15;
+/** Cap momentum magnitude to prevent runaway trends */
+const MOMENTUM_CAP = 0.03;
 
 export class StockMarket {
   stocks: Stock[] = [];
@@ -103,9 +105,10 @@ export class StockMarket {
       // Pure random walk component — symmetric, zero-mean
       const shock = (Math.random() - 0.5) * 2 * stock.volatility;
 
-      // Momentum: accumulates shocks so stocks can trend for short bursts,
-      // but decays back toward zero (mean-reverting)
+      // Momentum: accumulates shocks for short-term trends, decays back to zero.
+      // Capped to prevent runaway compounding.
       stock.momentum = stock.momentum * MOMENTUM_DECAY + shock * MOMENTUM_SENSITIVITY;
+      stock.momentum = Math.max(-MOMENTUM_CAP, Math.min(MOMENTUM_CAP, stock.momentum));
 
       // News-driven component
       let newsEffect = 0;
@@ -113,14 +116,15 @@ export class StockMarket {
         newsEffect = this.newsFeed.getImpact(stock.symbol);
       }
 
-      // Occasional large random jumps (fat tails) — ~5% chance per tick
+      // Occasional large random jumps (fat tails) — ~3% chance per tick
       let fatTail = 0;
-      if (Math.random() < 0.05) {
-        fatTail = (Math.random() - 0.5) * stock.volatility * 4;
+      if (Math.random() < 0.03) {
+        fatTail = (Math.random() - 0.5) * stock.volatility * 3;
       }
 
-      // Combine: random walk + momentum + news + fat tail
-      const change = stock.price * (shock + stock.momentum + newsEffect + fatTail);
+      // Combine: shock OR momentum (not both — momentum replaces shock direction),
+      // plus news and rare fat tails
+      const change = stock.price * (shock * 0.6 + stock.momentum + newsEffect + fatTail);
       const newPrice = Math.max(0.01, stock.price + change);
 
       // Volume correlates with volatility and news activity
