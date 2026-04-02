@@ -9,6 +9,7 @@ export class Sidebar {
   private console: ConsoleOutput;
   private prevPrices: Map<string, number> = new Map();
   private onLoadMission: ((mission: Mission) => void) | null = null;
+  private tooltipEl: HTMLDivElement;
 
   constructor(el: HTMLDivElement, state: GameState, console: ConsoleOutput) {
     this.el = el;
@@ -17,7 +18,57 @@ export class Sidebar {
     for (const s of state.stockMarket.stocks) {
       this.prevPrices.set(s.symbol, s.price);
     }
+
+    // Create shared tooltip element
+    this.tooltipEl = document.createElement('div');
+    this.tooltipEl.className = 'stock-tooltip';
+    this.tooltipEl.style.display = 'none';
+    document.body.appendChild(this.tooltipEl);
+
+    // Global listener to dismiss tooltip on outside tap
+    document.addEventListener('click', (e) => {
+      if (!(e.target as HTMLElement)?.classList?.contains('stock-tag')) {
+        this.tooltipEl.style.display = 'none';
+      }
+    });
+
+    // Delegate hover/click on stock tags
+    this.el.addEventListener('mouseover', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) this.showTooltip(tag);
+    });
+    this.el.addEventListener('mouseout', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) this.tooltipEl.style.display = 'none';
+    });
+    this.el.addEventListener('click', (e) => {
+      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
+      if (tag) {
+        e.stopPropagation();
+        if (this.tooltipEl.style.display === 'block' && this.tooltipEl.dataset['sym'] === tag.textContent) {
+          this.tooltipEl.style.display = 'none';
+        } else {
+          this.showTooltip(tag);
+        }
+      }
+    });
+
     this.render();
+  }
+
+  private showTooltip(tag: HTMLElement): void {
+    const text = tag.dataset['tooltip'] ?? '';
+    if (!text) return;
+    this.tooltipEl.textContent = text;
+    this.tooltipEl.dataset['sym'] = tag.textContent ?? '';
+    this.tooltipEl.style.display = 'block';
+    const rect = tag.getBoundingClientRect();
+    let top = rect.top - this.tooltipEl.offsetHeight - 6;
+    if (top < 4) top = rect.bottom + 6; // flip below if no room above
+    let left = rect.left;
+    if (left + 210 > window.innerWidth) left = window.innerWidth - 214;
+    this.tooltipEl.style.top = top + 'px';
+    this.tooltipEl.style.left = Math.max(4, left) + 'px';
   }
 
   setOnLoadMission(fn: (mission: Mission) => void): void {

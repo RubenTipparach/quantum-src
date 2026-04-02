@@ -22,6 +22,8 @@ interface SaveData {
   portfolio: Record<string, number>;
   completedMissions: string[];
   purchasedShopItems: string[];
+  stockMarket?: object;
+  sportsLeague?: object;
 }
 
 export class GameState {
@@ -154,6 +156,8 @@ export class GameState {
       portfolio: {},
       completedMissions: this.missions.filter(m => m.completed).map(m => m.id),
       purchasedShopItems: this.shop.items.filter(i => i.purchased).map(i => i.id),
+      stockMarket: this.stockMarket.serialize(),
+      sportsLeague: this.sportsLeague.serialize(),
     };
 
     for (const node of this.researchTree) {
@@ -214,6 +218,16 @@ export class GameState {
           if (item) item.purchased = true;
           // Don't re-apply — hardware state already loaded
         }
+      }
+
+      // Restore stock market state
+      if (data.stockMarket) {
+        this.stockMarket.deserialize(data.stockMarket as Parameters<typeof this.stockMarket.deserialize>[0]);
+      }
+
+      // Restore sports league state
+      if (data.sportsLeague) {
+        this.sportsLeague.deserialize(data.sportsLeague);
       }
     } catch { /* corrupted save — start fresh */ }
   }

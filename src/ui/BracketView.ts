@@ -19,6 +19,7 @@ const COLORS = {
   score: '#aaccbb',
   seed: '#446666',
   phaseLabel: '#6688ff',
+  highlight: '#1a4a2a',
 };
 
 const MATCH_W = 150;
@@ -26,9 +27,25 @@ const MATCH_H = 44;
 const ROUND_GAP = 50;
 const MATCH_V_GAP = 8;
 
+/** Stored positions for hit-testing clicks */
+interface TeamHitBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  teamId: string;
+}
+
 export class BracketView {
+  private static refreshTimer: ReturnType<typeof setInterval> | null = null;
+  private static hitBoxes: TeamHitBox[] = [];
+
   static show(sport: Sport): void {
     document.getElementById('bracket-modal')?.remove();
+    if (BracketView.refreshTimer) {
+      clearInterval(BracketView.refreshTimer);
+      BracketView.refreshTimer = null;
+    }
 
     const modal = document.createElement('div');
     modal.id = 'bracket-modal';
@@ -41,37 +58,92 @@ export class BracketView {
       <div class="bk-content">
         <div class="bk-header">
           <span>${sport.icon} ${sport.name} — Season ${sport.seasonNumber}</span>
-          <span class="bk-phase">${BracketView.phaseLabel(sport)}</span>
+          <span class="bk-phase" id="bk-phase-label"></span>
           <button class="bk-close">&times;</button>
         </div>
-        <div class="bk-body"><canvas id="bracket-canvas"></canvas></div>
-        ${sport.playerBets ? BracketView.betsFooter(sport) : '<div class="bk-footer" style="color:#334455;">No bets placed this season</div>'}
+        <div class="bk-body">
+          <canvas id="bracket-canvas"></canvas>
+          <div id="bk-team-detail" class="bk-team-detail" style="display:none;"></div>
+        </div>
+        <div class="bk-footer" id="bk-footer"></div>
       </div>
     `;
 
     document.body.appendChild(modal);
-    modal.querySelector('.bk-backdrop')!.addEventListener('click', () => modal.remove());
-    modal.querySelector('.bk-close')!.addEventListener('click', () => modal.remove());
 
-    BracketView.draw(modal, sport, teamMap);
+    const close = () => {
+      if (BracketView.refreshTimer) {
+        clearInterval(BracketView.refreshTimer);
+        BracketView.refreshTimer = null;
+      }
+      modal.remove();
+    };
+
+    modal.querySelector('.bk-backdrop')!.addEventListener('click', close);
+    modal.querySelector('.bk-close')!.addEventListener('click', close);
+
+    // Canvas click handler for team details
+    const canvas = modal.querySelector('#bracket-canvas') as HTMLCanvasElement;
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const mx = (e.clientX - rect.left) * dpr;
+      const my = (e.clientY - rect.top) * dpr;
+
+      for (const hb of BracketView.hitBoxes) {
+        if (mx >= hb.x * dpr && mx <= (hb.x + hb.w) * dpr &&
+            my >= hb.y * dpr && my <= (hb.y + hb.h) * dpr) {
+          const team = teamMap.get(hb.teamId);
+          if (team) BracketView.showTeamDetail(modal, team, sport);
+          return;
+        }
+      }
+      // Clicked empty area — hide detail
+      const detail = modal.querySelector('#bk-team-detail') as HTMLElement;
+      if (detail) detail.style.display = 'none';
+    });
+
+    // Initial draw + timer updates
+    const refresh = () => {
+      BracketView.updatePhaseLabel(modal, sport);
+      BracketView.updateFooter(modal, sport);
+      BracketView.draw(modal, sport, teamMap);
+    };
+    refresh();
+    BracketView.refreshTimer = setInterval(refresh, 1500);
   }
 
-  private static phaseLabel(sport: Sport): string {
+  private static updatePhaseLabel(modal: HTMLElement, sport: Sport): void {
+    const el = modal.querySelector('#bk-phase-label');
+    if (!el) return;
+
     if (sport.phase === 'betting') {
+      const totalSecs = Math.ceil(sport.phaseTicksLeft * 1.5);
+      const min = Math.floor(totalSecs / 60);
+      const sec = totalSecs % 60;
+      el.innerHTML = `<span style="color:#ffaa22;">BETTING OPEN</span> — <span style="color:#fff;">${min}:${String(sec).padStart(2, '0')}</span>`;
+    } else if (sport.phase === 'playing') {
+      const roundSecs = Math.ceil(sport.roundTicksLeft * 1.5);
+      const roundName = sport.bracket[sport.currentRound]?.name ?? '';
+      el.innerHTML = `<span style="color:#00ff88;">${roundName}</span> — <span style="color:#fff;">${roundSecs}s</span>`;
+    } else {
       const secs = Math.ceil(sport.phaseTicksLeft * 1.5);
-      return `BETTING OPEN — ${secs}s left`;
+      el.innerHTML = `<span style="color:#6688ff;">SEASON COMPLETE</span> — next in ${secs}s`;
     }
-    if (sport.phase === 'playing') {
-      return `ROUND ${sport.currentRound + 1}/4 — ${sport.bracket[sport.currentRound]?.name ?? ''}`;
-    }
-    return 'SEASON COMPLETE';
   }
 
-  private static betsFooter(sport: Sport): string {
-    const b = sport.playerBets!;
+  private static updateFooter(modal: HTMLElement, sport: Sport): void {
+    const el = modal.querySelector('#bk-footer');
+    if (!el) return;
+
+    if (!sport.playerBets) {
+      el.innerHTML = '<span style="color:#334455;">No bets placed this season</span>';
+      return;
+    }
+
+    const b = sport.playerBets;
     const roundLabels = ['R16', 'QF', 'SF', 'Final'];
-    let html = '<div class="bk-footer"><span class="bk-bet-label">Your Bets ($' +
-      b.wager.toLocaleString() + ' wager):</span>';
+    let html = `<span class="bk-bet-label">Your Bets ($${b.wager.toLocaleString()} wager):</span>`;
 
     if (b.correctPerRound.length > 0) {
       const parts = b.correctPerRound.map((c, i) => {
@@ -85,27 +157,61 @@ export class BracketView {
       html += '<span style="color:#ffaa22;">Awaiting results...</span>';
     }
 
-    html += '</div>';
-    return html;
+    el.innerHTML = html;
+  }
+
+  private static showTeamDetail(modal: HTMLElement, team: Team, sport: Sport): void {
+    const detail = modal.querySelector('#bk-team-detail') as HTMLElement;
+    if (!detail) return;
+
+    // Find the team's tournament path
+    const path: string[] = [];
+    for (const round of sport.bracket) {
+      for (const m of round.matches) {
+        if (m.played && (m.team1Id === team.id || m.team2Id === team.id)) {
+          const opp = m.team1Id === team.id ? m.team2Id : m.team1Id;
+          const oppTeam = sport.teams.find(t => t.id === opp);
+          const won = m.winnerId === team.id;
+          path.push(`${won ? 'W' : 'L'} vs ${oppTeam?.name ?? 'TBD'} (${m.score ? m.score.join('-') : '—'})`);
+        }
+      }
+    }
+
+    const winPct = team.wins + team.losses > 0
+      ? Math.round((team.wins / (team.wins + team.losses)) * 100) : 0;
+
+    detail.innerHTML = `
+      <div class="bk-detail-header">${team.name}</div>
+      <div class="bk-detail-row"><span>Seed</span><span>#${team.seed}</span></div>
+      <div class="bk-detail-row"><span>Rating</span><span style="color:#ffaa22;">${team.rating}</span></div>
+      <div class="bk-detail-row"><span>Record</span><span>${team.wins}W - ${team.losses}L${winPct > 0 ? ` (${winPct}%)` : ''}</span></div>
+      ${path.length > 0 ? `
+        <div class="bk-detail-label">Tournament Path</div>
+        ${path.map(p => {
+          const color = p.startsWith('W') ? '#00ff88' : '#ff4444';
+          return `<div class="bk-detail-path" style="color:${color};">${p}</div>`;
+        }).join('')}
+      ` : '<div class="bk-detail-label" style="color:#334455;">No matches played yet</div>'}
+    `;
+    detail.style.display = 'block';
   }
 
   private static draw(modal: HTMLElement, sport: Sport, teamMap: Map<string, Team>): void {
     const canvas = modal.querySelector('#bracket-canvas') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d')!;
+    BracketView.hitBoxes = [];
 
     const rounds = sport.bracket;
     const roundCount = rounds.length;
 
-    // Calculate canvas dimensions
     const padX = 30;
     const padY = 30;
     const maxMatches = rounds[0]?.matches.length ?? 8;
     const colW = MATCH_W + ROUND_GAP;
 
     const totalW = padX * 2 + roundCount * colW;
-    // Height: first round determines max, subsequent rounds center vertically
     const round1H = maxMatches * (MATCH_H + MATCH_V_GAP) - MATCH_V_GAP;
-    const totalH = padY * 2 + round1H + 40; // +40 for header
+    const totalH = padY * 2 + round1H + 40;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = totalW * dpr;
@@ -114,26 +220,22 @@ export class BracketView {
     canvas.style.height = totalH + 'px';
     ctx.scale(dpr, dpr);
 
-    // Background
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, totalW, totalH);
 
-    // Positions: each match → { x, y, centerY }
+    // Positions
     const positions: { x: number; y: number; centerY: number }[][] = [];
 
     for (let r = 0; r < roundCount; r++) {
       const round = rounds[r]!;
       const matchCount = round.matches.length;
       const x = padX + r * colW;
-
-      // Center vertically relative to round 1
       const totalRoundH = matchCount * (MATCH_H + MATCH_V_GAP) - MATCH_V_GAP;
 
       let startY: number;
       if (r === 0) {
         startY = padY + 30;
       } else {
-        // Center between the midpoints of parent matches
         const parentPositions = positions[r - 1]!;
         const firstParent = parentPositions[0]!;
         const lastParent = parentPositions[parentPositions.length - 1]!;
@@ -150,7 +252,7 @@ export class BracketView {
       positions.push(roundPositions);
     }
 
-    // Draw round headers
+    // Round headers
     ctx.font = 'bold 10px Courier New';
     ctx.textAlign = 'center';
     for (let r = 0; r < roundCount; r++) {
@@ -160,7 +262,7 @@ export class BracketView {
       ctx.fillText(rounds[r]!.name.toUpperCase(), x, padY + 20);
     }
 
-    // Draw connector lines
+    // Connector lines
     for (let r = 1; r < roundCount; r++) {
       const prevRound = positions[r - 1]!;
       const currRound = positions[r]!;
@@ -176,7 +278,6 @@ export class BracketView {
           ctx.strokeStyle = isReady ? COLORS.lineActive + '66' : COLORS.line;
           ctx.lineWidth = 1.5;
 
-          // Horizontal from parent, then vertical, then horizontal to child
           const midX = parent1.x + MATCH_W + ROUND_GAP / 2;
 
           ctx.beginPath();
@@ -216,7 +317,6 @@ export class BracketView {
     const played = match.played;
     const halfH = MATCH_H / 2;
 
-    // Match box
     ctx.fillStyle = played ? COLORS.matchPlayed : COLORS.matchBg;
     ctx.strokeStyle = played ? COLORS.matchPlayedBorder : COLORS.matchBorder;
     ctx.lineWidth = 1;
@@ -225,7 +325,6 @@ export class BracketView {
     ctx.fill();
     ctx.stroke();
 
-    // Divider line
     ctx.strokeStyle = COLORS.matchBorder;
     ctx.lineWidth = 0.5;
     ctx.beginPath();
@@ -233,7 +332,6 @@ export class BracketView {
     ctx.lineTo(x + MATCH_W, y + halfH);
     ctx.stroke();
 
-    // Draw each team
     const teams = [
       { id: match.team1Id, scoreIdx: 0 as const },
       { id: match.team2Id, scoreIdx: 1 as const },
@@ -253,6 +351,9 @@ export class BracketView {
 
       const team = teamMap.get(id);
       if (!team) continue;
+
+      // Register click hit box
+      BracketView.hitBoxes.push({ x, y: ty, w: MATCH_W, h: halfH, teamId: id });
 
       const isWinner = played && match.winnerId === id;
       const isLoser = played && match.winnerId !== id;
@@ -281,7 +382,7 @@ export class BracketView {
       ctx.fillStyle = isWinner ? COLORS.winner : isLoser ? COLORS.loser : COLORS.text;
       const nameX = x + 26;
       const maxNameW = MATCH_W - 50;
-      ctx.fillText(team.name.length > 16 ? team.name.slice(0, 15) + '…' : team.name, nameX, ty + halfH / 2 + 3, maxNameW);
+      ctx.fillText(team.name.length > 16 ? team.name.slice(0, 15) + '\u2026' : team.name, nameX, ty + halfH / 2 + 3, maxNameW);
 
       // Score
       if (match.score) {

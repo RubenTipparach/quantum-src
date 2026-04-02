@@ -121,7 +121,9 @@ export interface Sport {
   phaseTicksLeft: number;
   /** Current round being played (0-3) during 'playing' phase */
   currentRound: number;
-  /** Ticks until next match resolves */
+  /** Ticks remaining in the current round */
+  roundTicksLeft: number;
+  /** Ticks until next match resolves within a round */
   matchTimer: number;
   /** Player's bets for this season */
   playerBets: PlayerBets | null;
@@ -132,10 +134,10 @@ const PAYOUT_MULTIPLIERS = [0.5, 1.5, 3, 8];
 
 const ROUND_NAMES = ['Round of 16', 'Quarterfinals', 'Semifinals', 'Championship'];
 
-/** Ticks per phase */
-const BETTING_TICKS = 40;
-const FINISHED_TICKS = 20;
-const TICKS_PER_MATCH = 3;
+/** Ticks per phase (1 tick = 1.5 seconds) */
+const BETTING_TICKS = 200;   // 5 minutes
+const FINISHED_TICKS = 40;   // 1 minute results display
+const ROUND_TICKS = 40;      // 1 minute per bracket round
 
 // ────────────────────────────────────────────────────────────
 //  TEAM NAME GENERATION
@@ -151,6 +153,10 @@ const CITIES = [
   'Columbus', 'Indianapolis', 'Louisville', 'New Orleans', 'San Antonio',
   'Tucson', 'Omaha', 'El Paso', 'Boise', 'Fresno', 'Tulsa',
   'Anchorage', 'Honolulu', 'Birmingham', 'Spokane', 'Savannah',
+  'Hartford', 'Buffalo', 'Rochester', 'Norfolk', 'Wichita',
+  'Dayton', 'Lexington', 'Akron', 'Stockton', 'Laredo',
+  'Madison', 'Knoxville', 'Tacoma', 'Topeka', 'Fargo',
+  'Provo', 'Reno', 'Mobile', 'Tempe', 'Peoria',
 ];
 
 const MASCOTS = [
@@ -287,9 +293,10 @@ export class SportsLeague {
         phase: 'betting',
         seasonNumber: 1,
         // Stagger starts so not all sports begin simultaneously
-        phaseTicksLeft: BETTING_TICKS + i * 12,
+        phaseTicksLeft: BETTING_TICKS + i * 50,
         currentRound: 0,
-        matchTimer: TICKS_PER_MATCH,
+        roundTicksLeft: ROUND_TICKS,
+        matchTimer: 0,
         playerBets: null,
       });
     }
@@ -310,7 +317,8 @@ export class SportsLeague {
         if (sport.phaseTicksLeft <= 0) {
           sport.phase = 'playing';
           sport.currentRound = 0;
-          sport.matchTimer = TICKS_PER_MATCH;
+          sport.roundTicksLeft = ROUND_TICKS;
+          this.scheduleMatchTimers(sport);
         }
         break;
 
@@ -327,36 +335,53 @@ export class SportsLeague {
   }
 
   private tickPlaying(sport: Sport): void {
+    sport.roundTicksLeft--;
     sport.matchTimer--;
-    if (sport.matchTimer > 0) return;
 
     const round = sport.bracket[sport.currentRound];
     if (!round) return;
 
-    // Find next unplayed match in current round
-    const match = round.matches.find(m => !m.played && m.team1Id && m.team2Id);
+    // Resolve next match when its timer fires
+    if (sport.matchTimer <= 0) {
+      const match = round.matches.find(m => !m.played && m.team1Id && m.team2Id);
+      if (match) {
+        const team1 = sport.teams.find(t => t.id === match.team1Id)!;
+        const team2 = sport.teams.find(t => t.id === match.team2Id)!;
+        const result = simulateMatch(team1, team2);
+        match.winnerId = result.winnerId;
+        match.score = result.score;
+        match.played = true;
 
-    if (match) {
-      const team1 = sport.teams.find(t => t.id === match.team1Id)!;
-      const team2 = sport.teams.find(t => t.id === match.team2Id)!;
-      const result = simulateMatch(team1, team2);
-      match.winnerId = result.winnerId;
-      match.score = result.score;
-      match.played = true;
+        const winner = sport.teams.find(t => t.id === result.winnerId)!;
+        const loser = sport.teams.find(t => t.id === (result.winnerId === team1.id ? team2.id : team1.id))!;
+        winner.wins++;
+        loser.losses++;
+      }
 
-      // Update win/loss records
-      const winner = sport.teams.find(t => t.id === result.winnerId)!;
-      const loser = sport.teams.find(t => t.id === (result.winnerId === team1.id ? team2.id : team1.id))!;
-      winner.wins++;
-      loser.losses++;
-
-      sport.matchTimer = TICKS_PER_MATCH;
+      // Schedule next match timer (remaining matches spread across remaining ticks)
+      const remaining = round.matches.filter(m => !m.played).length;
+      if (remaining > 0 && sport.roundTicksLeft > 0) {
+        sport.matchTimer = Math.max(1, Math.floor(sport.roundTicksLeft / remaining));
+      }
     }
 
-    // Check if round is complete
-    const roundComplete = round.matches.every(m => m.played);
-    if (roundComplete) {
-      // Advance winners to next round
+    // When round time expires, force-resolve any remaining matches and advance
+    if (sport.roundTicksLeft <= 0) {
+      // Force resolve any stragglers
+      for (const m of round.matches) {
+        if (!m.played && m.team1Id && m.team2Id) {
+          const t1 = sport.teams.find(t => t.id === m.team1Id)!;
+          const t2 = sport.teams.find(t => t.id === m.team2Id)!;
+          const result = simulateMatch(t1, t2);
+          m.winnerId = result.winnerId;
+          m.score = result.score;
+          m.played = true;
+          sport.teams.find(t => t.id === result.winnerId)!.wins++;
+          sport.teams.find(t => t.id === (result.winnerId === t1.id ? t2.id : t1.id))!.losses++;
+        }
+      }
+
+      // Advance to next round
       if (sport.currentRound < 3) {
         const nextRound = sport.bracket[sport.currentRound + 1]!;
         const winners = round.matches.map(m => m.winnerId!);
@@ -365,14 +390,23 @@ export class SportsLeague {
           nextRound.matches[i]!.team2Id = winners[i * 2 + 1] ?? null;
         }
         sport.currentRound++;
-        sport.matchTimer = TICKS_PER_MATCH;
+        sport.roundTicksLeft = ROUND_TICKS;
+        this.scheduleMatchTimers(sport);
       } else {
-        // Tournament over
         sport.phase = 'finished';
         sport.phaseTicksLeft = FINISHED_TICKS;
         this.scoreBets(sport);
       }
     }
+  }
+
+  /** Spread matches evenly across the round time */
+  private scheduleMatchTimers(sport: Sport): void {
+    const round = sport.bracket[sport.currentRound];
+    if (!round) return;
+    const matchCount = round.matches.length;
+    const interval = Math.max(1, Math.floor(ROUND_TICKS / (matchCount + 1)));
+    sport.matchTimer = interval;
   }
 
   private scoreBets(sport: Sport): void {
@@ -420,7 +454,8 @@ export class SportsLeague {
     sport.phase = 'betting';
     sport.phaseTicksLeft = BETTING_TICKS;
     sport.currentRound = 0;
-    sport.matchTimer = TICKS_PER_MATCH;
+    sport.roundTicksLeft = ROUND_TICKS;
+    sport.matchTimer = 0;
     sport.playerBets = null;
   }
 
@@ -487,5 +522,39 @@ export class SportsLeague {
       }
     }
     return total;
+  }
+
+  /** Serialize full state for saving */
+  serialize(): object {
+    return this.sports.map(s => ({
+      id: s.id,
+      teams: s.teams,
+      bracket: s.bracket,
+      phase: s.phase,
+      seasonNumber: s.seasonNumber,
+      phaseTicksLeft: s.phaseTicksLeft,
+      currentRound: s.currentRound,
+      roundTicksLeft: s.roundTicksLeft,
+      matchTimer: s.matchTimer,
+      playerBets: s.playerBets,
+    }));
+  }
+
+  /** Restore full state from save */
+  deserialize(data: unknown): void {
+    if (!Array.isArray(data)) return;
+    for (const saved of data) {
+      const sport = this.sports.find(s => s.id === saved.id);
+      if (!sport) continue;
+      sport.teams = saved.teams ?? sport.teams;
+      sport.bracket = saved.bracket ?? sport.bracket;
+      sport.phase = saved.phase ?? sport.phase;
+      sport.seasonNumber = saved.seasonNumber ?? sport.seasonNumber;
+      sport.phaseTicksLeft = saved.phaseTicksLeft ?? sport.phaseTicksLeft;
+      sport.currentRound = saved.currentRound ?? sport.currentRound;
+      sport.roundTicksLeft = saved.roundTicksLeft ?? sport.roundTicksLeft;
+      sport.matchTimer = saved.matchTimer ?? sport.matchTimer;
+      sport.playerBets = saved.playerBets ?? sport.playerBets;
+    }
   }
 }

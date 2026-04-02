@@ -173,4 +173,31 @@ export class StockMarket {
       .map(s => `${s.symbol}: $${s.price.toFixed(2)}`)
       .join(' | ');
   }
+
+  /** Serialize mutable state for saving */
+  serialize(): { prices: Record<string, number>; momentum: Record<string, number>; candles: Record<string, Candle[]> } {
+    const prices: Record<string, number> = {};
+    const momentum: Record<string, number> = {};
+    const candles: Record<string, Candle[]> = {};
+    for (const s of this.stocks) {
+      prices[s.symbol] = s.price;
+      momentum[s.symbol] = s.momentum;
+      // Save last 60 candles to keep save size reasonable
+      candles[s.symbol] = s.candles.slice(-60);
+    }
+    return { prices, momentum, candles };
+  }
+
+  /** Restore mutable state from save */
+  deserialize(data: { prices?: Record<string, number>; momentum?: Record<string, number>; candles?: Record<string, Candle[]> }): void {
+    if (!data) return;
+    for (const s of this.stocks) {
+      const p = data.prices?.[s.symbol];
+      const m = data.momentum?.[s.symbol];
+      const c = data.candles?.[s.symbol];
+      if (p !== undefined) s.price = p;
+      if (m !== undefined) s.momentum = m;
+      if (c) s.candles = c;
+    }
+  }
 }

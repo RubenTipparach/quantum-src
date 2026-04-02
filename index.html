@@ -93,7 +93,7 @@
     }
     .stock-row .sym { color: #88bbaa; font-weight: bold; width: 50px; flex-shrink: 0; }
 
-    /* Hoverable stock tag with tooltip */
+    /* Hoverable/tappable stock tag with tooltip */
     .stock-tag {
       position: relative;
       cursor: help;
@@ -109,11 +109,8 @@
       border-color: #00ff88;
       background: #0f2a1a;
     }
-    .stock-tag:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      left: 0;
-      bottom: calc(100% + 6px);
+    .stock-tooltip {
+      position: fixed;
       background: #0a0a18;
       border: 1px solid #00ff88;
       border-radius: 4px;
@@ -123,8 +120,8 @@
       font-weight: normal;
       line-height: 1.4;
       white-space: pre-wrap;
-      width: 200px;
-      z-index: 100;
+      width: 210px;
+      z-index: 200;
       pointer-events: none;
       box-shadow: 0 2px 12px rgba(0, 255, 136, 0.15);
     }
@@ -170,6 +167,12 @@
     .bk-footer { padding:8px 16px;background:#060610;border-top:1px solid #1a3a2a;font-size:11px;color:#668877;display:flex;gap:12px;align-items:center;flex-wrap:wrap; }
     .bk-bet-label { color:#88bbaa;font-weight:bold;margin-right:4px; }
     .bk-payout { font-weight:bold;margin-left:auto; }
+
+    .bk-team-detail { position:absolute;top:10px;right:10px;width:200px;background:#0a0a18;border:1px solid #00ff88;border-radius:6px;padding:10px;z-index:10;box-shadow:0 2px 16px rgba(0,255,136,0.2); }
+    .bk-detail-header { color:#00ff88;font-weight:bold;font-size:12px;margin-bottom:6px;letter-spacing:0.5px; }
+    .bk-detail-row { display:flex;justify-content:space-between;font-size:10px;color:#88bbaa;padding:2px 0; }
+    .bk-detail-label { font-size:9px;color:#446666;margin-top:6px;text-transform:uppercase;letter-spacing:1px; }
+    .bk-detail-path { font-size:9px;padding:1px 0; }
 
     .news-item {
       display: flex;
@@ -398,7 +401,7 @@
       }
       #main-panel.active-tab-output #viewport {
         width: 100%;
-        height: 220px;
+        min-height: 260px;
         border-right: none;
         border-bottom: 1px solid #1a3a2a;
       }
@@ -408,6 +411,9 @@
       #main-panel.active-tab-output #console-area {
         flex: 1;
       }
+      /* Bigger stock selector buttons on mobile */
+      #stock-selector { max-width: 70%; }
+      #stock-selector button { font-size: 9px; padding: 3px 5px; }
 
       #sidebar { border-right: none; }
       .sb-header { font-size: 14px; padding: 8px 12px; }
