@@ -95,18 +95,24 @@ export interface BracketRound {
 
 export type SeasonPhase = 'betting' | 'playing' | 'finished';
 
-export interface PlayerBets {
-  /** Wager amount in dollars */
+export interface RoundBet {
+  roundIndex: number;
+  picks: string[];
   wager: number;
-  /**
-   * Predictions per round. Each array contains team IDs predicted to win.
-   * round1: 8 winners, round2: 4 winners, round3: 2 winners, round4: 1 winner
-   */
-  rounds: string[][];
-  /** Payout earned (calculated after tournament) */
+  /** How many rounds ahead this bet was placed (determines payout: 2^depth) */
+  depth: number;
+  /** Payout multiplier = 2^depth */
+  multiplier: number;
+  correct: number;
   payout: number;
-  /** Per-round correct counts */
-  correctPerRound: number[];
+  resolved: boolean;
+}
+
+export interface PlayerBets {
+  /** Per-round bets, indexed 0-3. null = no bet placed for that round yet */
+  roundBets: (RoundBet | null)[];
+  totalWagered: number;
+  totalPayout: number;
 }
 
 export interface Sport {
@@ -129,15 +135,14 @@ export interface Sport {
   playerBets: PlayerBets | null;
 }
 
-/** Payout multiplier per correct pick, indexed by round */
-const PAYOUT_MULTIPLIERS = [0.5, 1.5, 3, 8];
-
 const ROUND_NAMES = ['Round of 16', 'Quarterfinals', 'Semifinals', 'Championship'];
 
 /** Ticks per phase (1 tick = 1.5 seconds) */
 const BETTING_TICKS = 200;   // 5 minutes
 const FINISHED_TICKS = 40;   // 1 minute results display
 const ROUND_TICKS = 40;      // 1 minute per bracket round
+/** Betting closes this many ticks before a round ends (~5 seconds) */
+const BET_CUTOFF_TICKS = 4;
 
 // ────────────────────────────────────────────────────────────
 //  TEAM NAME GENERATION
@@ -381,6 +386,9 @@ export class SportsLeague {
         }
       }
 
+      // Score this round's bets
+      this.scoreRoundBets(sport, sport.currentRound);
+
       // Advance to next round
       if (sport.currentRound < 3) {
         const nextRound = sport.bracket[sport.currentRound + 1]!;
@@ -393,9 +401,9 @@ export class SportsLeague {
         sport.roundTicksLeft = ROUND_TICKS;
         this.scheduleMatchTimers(sport);
       } else {
+        this.scoreAllBets(sport);
         sport.phase = 'finished';
         sport.phaseTicksLeft = FINISHED_TICKS;
-        this.scoreBets(sport);
       }
     }
   }
@@ -409,30 +417,34 @@ export class SportsLeague {
     sport.matchTimer = interval;
   }
 
-  private scoreBets(sport: Sport): void {
+  /** Score a specific round's bets after it completes */
+  private scoreRoundBets(sport: Sport, roundIndex: number): void {
     const bets = sport.playerBets;
     if (!bets) return;
+    const roundBet = bets.roundBets[roundIndex];
+    if (!roundBet || roundBet.resolved) return;
 
-    let totalPayout = 0;
-    bets.correctPerRound = [];
+    const round = sport.bracket[roundIndex];
+    if (!round) return;
 
-    for (let r = 0; r < 4; r++) {
-      const predicted = bets.rounds[r] ?? [];
-      const round = sport.bracket[r];
-      if (!round) { bets.correctPerRound.push(0); continue; }
-
-      let correct = 0;
-      const actualWinners = round.matches.filter(m => m.played).map(m => m.winnerId!);
-
-      for (const pred of predicted) {
-        if (actualWinners.includes(pred)) correct++;
-      }
-
-      bets.correctPerRound.push(correct);
-      totalPayout += correct * bets.wager * PAYOUT_MULTIPLIERS[r]!;
+    const actualWinners = round.matches.filter(m => m.played).map(m => m.winnerId!);
+    let correct = 0;
+    for (const pick of roundBet.picks) {
+      if (actualWinners.includes(pick)) correct++;
     }
 
-    bets.payout = totalPayout;
+    roundBet.correct = correct;
+    roundBet.payout = correct * roundBet.wager * roundBet.multiplier;
+    roundBet.resolved = true;
+    bets.totalPayout += roundBet.payout;
+  }
+
+  /** Score all remaining unresolved bets at end of tournament */
+  private scoreAllBets(sport: Sport): void {
+    if (!sport.playerBets) return;
+    for (let r = 0; r < 4; r++) {
+      this.scoreRoundBets(sport, r);
+    }
   }
 
   private startNewSeason(sport: Sport): void {
@@ -459,53 +471,139 @@ export class SportsLeague {
     sport.playerBets = null;
   }
 
-  /** Place bets for a sport. Returns error string or null on success. */
+  /**
+   * Get the current active round index for betting purposes.
+   * Returns -1 during betting phase, 0-3 during play, or 4 when finished.
+   */
+  private getActiveRound(sport: Sport): number {
+    if (sport.phase === 'betting') return -1;
+    if (sport.phase === 'finished') return 4;
+    return sport.currentRound;
+  }
+
+  /**
+   * Check if betting is still open for a specific round.
+   * Bets close BET_CUTOFF_TICKS before the round ends.
+   */
+  canBetOnRound(sport: Sport, roundIndex: number): boolean {
+    if (sport.phase === 'finished') return false;
+    const activeRound = this.getActiveRound(sport);
+
+    // Can't bet on already-completed rounds
+    if (roundIndex < activeRound) return false;
+
+    // If we're in this round, check the cutoff timer
+    if (sport.phase === 'playing' && roundIndex === activeRound) {
+      return sport.roundTicksLeft > BET_CUTOFF_TICKS;
+    }
+
+    // Future rounds are always open for betting
+    return true;
+  }
+
+  /**
+   * Place bets on specific rounds. Can be called multiple times to bet
+   * on different rounds at different times. Once a round's bet is placed,
+   * it cannot be changed.
+   *
+   * Payout multiplier = 2^depth where depth = (targetRound - currentRound).
+   *   depth 1 = 1:2, depth 2 = 1:4, depth 3 = 1:8, depth 4 = 1:16
+   *
+   * @param wager - amount wagered PER ROUND in this call
+   * @param rounds - {round1: [...], round2: [...], ...} picks for each round
+   * @returns error string or null on success, plus total wagered
+   */
   placeBets(sportId: string, wager: number, rounds: Record<string, string[]>): string | null {
     const sport = this.sports.find(s => s.id === sportId);
     if (!sport) return `Unknown sport: ${sportId}`;
-    if (sport.phase !== 'betting') return `Betting is closed for ${sport.name}. Phase: ${sport.phase}`;
+    if (sport.phase === 'finished') return `Season is over for ${sport.name}. Wait for next season.`;
     if (wager < 100) return 'Minimum wager is $100';
-    if (sport.playerBets) return `Bets already placed for ${sport.name} this season. Wait for next season.`;
 
-    const roundArrays: string[][] = [];
+    // Initialize bets structure if first bet
+    if (!sport.playerBets) {
+      sport.playerBets = {
+        roundBets: [null, null, null, null],
+        totalWagered: 0,
+        totalPayout: 0,
+      };
+    }
+
     const expectedCounts = [8, 4, 2, 1];
     const roundKeys = ['round1', 'round2', 'round3', 'round4'];
+    const activeRound = this.getActiveRound(sport);
+    let roundsBet = 0;
+    let totalCost = 0;
+
+    // Validate all requested rounds first before committing any
+    const pending: { roundIndex: number; picks: string[]; depth: number }[] = [];
 
     for (let r = 0; r < 4; r++) {
       const key = roundKeys[r]!;
       const picks = rounds[key];
-      if (!picks || !Array.isArray(picks)) {
-        return `Missing ${key}: expected array of ${expectedCounts[r]} team IDs`;
+      if (!picks || !Array.isArray(picks) || picks.length === 0) continue; // skip rounds not in this call
+
+      // Already bet on this round?
+      if (sport.playerBets.roundBets[r]) {
+        return `${key}: bet already locked in. Cannot change.`;
       }
+
+      // Betting window check
+      if (!this.canBetOnRound(sport, r)) {
+        return `${key}: betting window closed for this round.`;
+      }
+
+      // Validate pick count
       if (picks.length !== expectedCounts[r]) {
         return `${key}: expected ${expectedCounts[r]} picks, got ${picks.length}`;
       }
-      // Validate team IDs exist
+
+      // Validate team IDs
       for (const tid of picks) {
         if (!sport.teams.find(t => t.id === tid)) {
           return `Unknown team ID in ${key}: ${tid}`;
         }
       }
-      roundArrays.push(picks);
+
+      // Calculate depth: how many rounds ahead from the current state
+      const currentBase = activeRound < 0 ? 0 : activeRound;
+      const depth = Math.max(1, r - currentBase + 1);
+
+      pending.push({ roundIndex: r, picks, depth });
+      totalCost += wager;
+      roundsBet++;
     }
 
-    // Validate bracket consistency: each round's picks must be a subset of the previous round
-    for (let r = 1; r < 4; r++) {
-      for (const tid of roundArrays[r]!) {
-        if (!roundArrays[r - 1]!.includes(tid)) {
-          return `${roundKeys[r]}: team ${tid} wasn't picked to win in ${roundKeys[r - 1]}`;
-        }
-      }
+    if (roundsBet === 0) {
+      return 'No valid rounds specified. Use {round1: [...], round2: [...], ...}';
     }
 
-    sport.playerBets = {
-      wager,
-      rounds: roundArrays,
-      payout: 0,
-      correctPerRound: [],
-    };
+    // Commit all bets
+    for (const p of pending) {
+      const multiplier = Math.pow(2, p.depth);
+      sport.playerBets.roundBets[p.roundIndex] = {
+        roundIndex: p.roundIndex,
+        picks: p.picks,
+        wager,
+        depth: p.depth,
+        multiplier,
+        correct: 0,
+        payout: 0,
+        resolved: false,
+      };
+      sport.playerBets.totalWagered += wager;
+    }
 
     return null;
+  }
+
+  /** Get total cost of a placeBets call (for money deduction) */
+  calcBetCost(rounds: Record<string, string[]>, wager: number): number {
+    let count = 0;
+    for (const key of ['round1', 'round2', 'round3', 'round4']) {
+      const picks = rounds[key];
+      if (picks && Array.isArray(picks) && picks.length > 0) count++;
+    }
+    return count * wager;
   }
 
   getSport(id: string): Sport | undefined {
@@ -516,9 +614,9 @@ export class SportsLeague {
   collectPayouts(): number {
     let total = 0;
     for (const sport of this.sports) {
-      if (sport.phase === 'finished' && sport.playerBets && sport.playerBets.payout > 0) {
-        total += sport.playerBets.payout;
-        sport.playerBets.payout = 0; // Don't double-collect
+      if (sport.phase === 'finished' && sport.playerBets && sport.playerBets.totalPayout > 0) {
+        total += sport.playerBets.totalPayout;
+        sport.playerBets.totalPayout = 0; // Don't double-collect
       }
     }
     return total;

@@ -323,18 +323,21 @@ export class Sandbox {
       const wager = ctx.dump(wagerHandle) as number;
       const roundsRaw = ctx.dump(roundsHandle) as Record<string, string[]>;
 
-      if (typeof sportId !== 'string') return ctx.newString('Usage: game.placeBets("sportId", wager, {round1: [...], ...})');
-      if (typeof wager !== 'number' || wager < 100) return ctx.newString('Minimum wager is $100');
-      if (wager > state.money) return ctx.newString(`Not enough money. Have $${state.money.toFixed(2)}, need $${wager}`);
+      if (typeof sportId !== 'string') return ctx.newString('Usage: game.placeBets("sportId", wagerPerRound, {round1: [...], ...})');
+      if (typeof wager !== 'number' || wager < 100) return ctx.newString('Minimum wager per round is $100');
+
+      // Calculate total cost (wager * number of rounds being bet on)
+      const totalCost = state.sportsLeague.calcBetCost(roundsRaw, wager);
+      if (totalCost > state.money) return ctx.newString(`Not enough money. Need $${totalCost} ($${wager}/round), have $${state.money.toFixed(2)}`);
 
       const err = state.sportsLeague.placeBets(sportId, wager, roundsRaw);
       if (err) return ctx.newString(err);
 
-      state.money -= wager;
-      const entry: ConsoleEntry = { type: 'log', text: `Placed $${wager.toLocaleString()} bet on ${sportId}` };
+      state.money -= totalCost;
+      const entry: ConsoleEntry = { type: 'log', text: `Placed $${totalCost.toLocaleString()} in bets on ${sportId} ($${wager}/round)` };
       this.consoleBuffer.push(entry);
       this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
-      return ctx.newString(`Bet placed! $${wager.toLocaleString()} wagered on ${sportId}`);
+      return ctx.newString(`Bets placed! $${totalCost.toLocaleString()} wagered on ${sportId}`);
     });
     ctx.setProp(gameObj, 'placeBets', placeBets);
     placeBets.dispose();

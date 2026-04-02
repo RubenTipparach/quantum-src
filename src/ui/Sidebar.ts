@@ -478,9 +478,9 @@ export class Sidebar {
       }
 
       const betStatus = sport.playerBets
-        ? (sport.playerBets.payout > 0
-          ? `<span style="color:#00ff88;">+$${sport.playerBets.payout.toLocaleString()}</span>`
-          : '<span style="color:#668877;">Bet placed</span>')
+        ? (sport.playerBets.totalPayout > 0
+          ? `<span style="color:#00ff88;">+$${sport.playerBets.totalPayout.toLocaleString()}</span>`
+          : `<span style="color:#668877;">$${sport.playerBets.totalWagered.toLocaleString()} wagered</span>`)
         : (sport.phase === 'betting'
           ? '<span style="color:#ffaa22;">No bet</span>'
           : '<span style="color:#334455;">—</span>');

@@ -143,18 +143,22 @@ export class BracketView {
 
     const b = sport.playerBets;
     const roundLabels = ['R16', 'QF', 'SF', 'Final'];
-    let html = `<span class="bk-bet-label">Your Bets ($${b.wager.toLocaleString()} wager):</span>`;
+    const expected = [8, 4, 2, 1];
 
-    if (b.correctPerRound.length > 0) {
-      const parts = b.correctPerRound.map((c, i) => {
-        const expected = [8, 4, 2, 1][i]!;
-        const color = c === expected ? COLORS.betCorrect : c > 0 ? COLORS.betPending : COLORS.betWrong;
-        return `<span style="color:${color};">${roundLabels[i]}: ${c}/${expected}</span>`;
-      });
-      html += parts.join(' ');
-      html += `<span class="bk-payout" style="color:${b.payout > 0 ? '#00ff88' : '#ff4444'};">Payout: $${b.payout.toLocaleString()}</span>`;
-    } else {
-      html += '<span style="color:#ffaa22;">Awaiting results...</span>';
+    let html = `<span class="bk-bet-label">Bets ($${b.totalWagered.toLocaleString()} wagered):</span>`;
+
+    const parts = b.roundBets.map((rb, i) => {
+      if (!rb) return `<span style="color:#334455;">${roundLabels[i]}: —</span>`;
+      const depthLabel = `${rb.multiplier}x`;
+      if (rb.resolved) {
+        const color = rb.correct > 0 ? COLORS.betCorrect : COLORS.betWrong;
+        return `<span style="color:${color};">${roundLabels[i]}: ${rb.correct}/${expected[i]} (${depthLabel}) +$${rb.payout.toLocaleString()}</span>`;
+      }
+      return `<span style="color:${COLORS.betPending};">${roundLabels[i]}: ${depthLabel} pending</span>`;
+    });
+    html += parts.join(' ');
+    if (b.totalPayout > 0) {
+      html += `<span class="bk-payout" style="color:#00ff88;">Payout: $${b.totalPayout.toLocaleString()}</span>`;
     }
 
     el.innerHTML = html;
@@ -360,7 +364,8 @@ export class BracketView {
 
       // Bet indicator
       if (bets) {
-        const predicted = bets.rounds[roundIndex]?.includes(id);
+        const roundBet = bets.roundBets[roundIndex];
+        const predicted = roundBet?.picks.includes(id);
         if (predicted) {
           let dotColor = COLORS.betPending;
           if (played) dotColor = isWinner ? COLORS.betCorrect : COLORS.betWrong;
