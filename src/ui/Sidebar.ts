@@ -41,32 +41,39 @@ export class Sidebar {
       const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
       if (tag) this.tooltipEl.style.display = 'none';
     });
-    this.el.addEventListener('click', (e) => {
-      const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
-      if (tag) {
-        e.stopPropagation();
-        if (this.tooltipEl.style.display === 'block' && this.tooltipEl.dataset['sym'] === tag.textContent) {
-          this.tooltipEl.style.display = 'none';
-        } else {
-          this.showTooltip(tag);
-        }
-      }
-    });
+    // Single delegated click handler for all dynamic sidebar elements
+    this.el.addEventListener('mousedown', (e) => {
+      const target = e.target as HTMLElement;
 
-    // Delegate click for sport bracket buttons (survives innerHTML rebuilds)
-    this.el.addEventListener('click', (e) => {
-      const sportBtn = (e.target as HTMLElement).closest('.sport-btn') as HTMLElement | null;
+      // Sport bracket buttons
+      const sportBtn = target.closest('.sport-btn') as HTMLElement | null;
       if (sportBtn) {
+        e.preventDefault();
         const sportId = sportBtn.dataset['sport'];
         if (sportId) {
           const sport = this.state.sportsLeague.getSport(sportId);
           if (sport) BracketView.show(sport);
         }
+        return;
       }
 
-      const newsBtn = (e.target as HTMLElement).closest('#btn-news-modal') as HTMLElement | null;
-      if (newsBtn) {
+      // News modal button
+      if (target.closest('#btn-news-modal')) {
+        e.preventDefault();
         this.showNewsModal();
+        return;
+      }
+
+      // Stock tag tooltips
+      const tag = target.closest('.stock-tag') as HTMLElement | null;
+      if (tag) {
+        e.preventDefault();
+        if (this.tooltipEl.style.display === 'block' && this.tooltipEl.dataset['sym'] === tag.textContent) {
+          this.tooltipEl.style.display = 'none';
+        } else {
+          this.showTooltip(tag);
+        }
+        return;
       }
     });
 
