@@ -243,13 +243,24 @@ export class Sandbox {
     sellFn.dispose();
 
     const getNews = ctx.newFunction('getNews', () => {
-      const events = state.newsFeed.getRecentEvents().map(ev => ({
-        headline: ev.headline,
-        category: ev.category,
-        impact: Math.round(ev.impact * 1000) / 1000,
-        active: ev.remaining > 0,
-        targets: ev.targets,
-      }));
+      const allStocks = state.stockMarket.stocks;
+      const events = state.newsFeed.getRecentEvents().map(ev => {
+        const affected = ev.targets.length === 0 ? allStocks : allStocks.filter(s => ev.targets.includes(s.symbol));
+        const stockImpacts: Record<string, number> = {};
+        for (const s of affected) {
+          stockImpacts[s.symbol] = Math.round(s.price * ev.impact * 100) / 100;
+        }
+        return {
+          headline: ev.headline,
+          category: ev.category,
+          impact: Math.round(ev.impact * 1000) / 1000,
+          active: ev.remaining > 0,
+          remaining: ev.remaining,
+          duration: ev.duration,
+          targets: ev.targets,
+          stockImpacts,
+        };
+      });
       return ctx.newString(JSON.stringify(events));
     });
     ctx.setProp(gameObj, 'getNews', getNews);

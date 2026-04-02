@@ -346,12 +346,25 @@ for (let s of stocks) {
               <span class="docs-ret">Returns: JSON string</span>
               <p>Recent news events with market impact data.</p>
               <pre class="docs-example">let news = JSON.parse(game.getNews());
-// [{headline: "...", category: "world",
-//   impact: 0.05, active: true,
-//   targets: ["CPUX","ROBO"]}, ...]
+// [{headline: "...",
+//   category: "world",
+//   impact: 0.05,
+//   active: true,
+//   remaining: 12,    // ticks left
+//   duration: 20,     // total ticks
+//   targets: ["CPUX","ROBO"],
+//   stockImpacts: {   // $ change/tick
+//     CPUX: 0.63, ROBO: 0.15
+//   }}, ...]
 for (let n of news) {
   if (n.active && n.impact > 0) {
     console.log("Bullish: " + n.headline);
+    console.log("  Lasts " + n.remaining
+      + "/" + n.duration + " ticks");
+    for (let sym in n.stockImpacts) {
+      console.log("  " + sym + ": +"
+        + n.stockImpacts[sym] + "/tick");
+    }
   }
 }</pre>
             </div>

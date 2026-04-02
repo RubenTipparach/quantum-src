@@ -16,7 +16,35 @@ for (let s of stocks) {
 print("Cash: $" + game.getMoney());
 `;
 
-const SAVE_KEY = 'quantumsrc_editor_code';
+const SCRIPTS_KEY = 'quantumsrc_scripts';
+
+interface ScriptFile {
+  id: string;
+  name: string;
+  code: string;
+  updatedAt: number;
+}
+
+function loadScripts(): ScriptFile[] {
+  try {
+    const raw = localStorage.getItem(SCRIPTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  // Migrate from old single-file save
+  const oldCode = localStorage.getItem('quantumsrc_editor_code');
+  const scripts: ScriptFile[] = [{
+    id: 'script_1',
+    name: 'program.js',
+    code: oldCode ?? STARTER_CODE,
+    updatedAt: Date.now(),
+  }];
+  saveScripts(scripts);
+  return scripts;
+}
+
+function saveScripts(scripts: ScriptFile[]): void {
+  try { localStorage.setItem(SCRIPTS_KEY, JSON.stringify(scripts)); } catch { /* ignore */ }
+}
 
 const setExecutingLine = StateEffect.define<number | null>();
 
@@ -56,26 +84,24 @@ export class CodeEditor {
   private view: EditorView;
   private running = false;
   private animationTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Line count of the code that's currently being animated */
   private snapshotLineCount = 0;
+  private scripts: ScriptFile[];
+  private activeScriptId: string;
+  private onTabsChanged: (() => void) | null = null;
 
   constructor(container: HTMLElement, onRun: (code: string) => void) {
+    this.scripts = loadScripts();
+    this.activeScriptId = this.scripts[0]!.id;
+
     const runKeymap = keymap.of([{
       key: 'Ctrl-Enter',
-      run: () => {
-        onRun(this.getCode());
-        return true;
-      },
+      run: () => { onRun(this.getCode()); return true; },
     }, {
       key: 'Cmd-Enter',
-      run: () => {
-        onRun(this.getCode());
-        return true;
-      },
+      run: () => { onRun(this.getCode()); return true; },
     }]);
 
-    const savedCode = localStorage.getItem(SAVE_KEY);
-    const initialCode = savedCode ?? STARTER_CODE;
+    const initialCode = this.scripts[0]!.code;
 
     this.view = new EditorView({
       state: EditorState.create({
@@ -88,7 +114,12 @@ export class CodeEditor {
           executingLineField,
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
-              localStorage.setItem(SAVE_KEY, update.state.doc.toString());
+              const script = this.scripts.find(s => s.id === this.activeScriptId);
+              if (script) {
+                script.code = update.state.doc.toString();
+                script.updatedAt = Date.now();
+                saveScripts(this.scripts);
+              }
             }
           }),
           EditorView.theme({
@@ -104,6 +135,60 @@ export class CodeEditor {
       }),
       parent: container,
     });
+  }
+
+  setOnTabsChanged(fn: () => void): void { this.onTabsChanged = fn; }
+
+  getScripts(): ScriptFile[] { return this.scripts; }
+  getActiveScriptId(): string { return this.activeScriptId; }
+
+  switchTo(scriptId: string): void {
+    // Save current code first
+    const current = this.scripts.find(s => s.id === this.activeScriptId);
+    if (current) { current.code = this.getCode(); current.updatedAt = Date.now(); }
+
+    const target = this.scripts.find(s => s.id === scriptId);
+    if (!target) return;
+    this.activeScriptId = target.id;
+    this.setCode(target.code);
+    saveScripts(this.scripts);
+    this.onTabsChanged?.();
+  }
+
+  newScript(name?: string): ScriptFile {
+    const id = 'script_' + Date.now();
+    const script: ScriptFile = {
+      id,
+      name: name ?? `script_${this.scripts.length + 1}.js`,
+      code: '// New script\n',
+      updatedAt: Date.now(),
+    };
+    this.scripts.push(script);
+    saveScripts(this.scripts);
+    this.switchTo(id);
+    return script;
+  }
+
+  renameScript(scriptId: string, newName: string): void {
+    const script = this.scripts.find(s => s.id === scriptId);
+    if (script) {
+      script.name = newName;
+      saveScripts(this.scripts);
+      this.onTabsChanged?.();
+    }
+  }
+
+  deleteScript(scriptId: string): boolean {
+    if (this.scripts.length <= 1) return false;
+    const idx = this.scripts.findIndex(s => s.id === scriptId);
+    if (idx < 0) return false;
+    this.scripts.splice(idx, 1);
+    if (this.activeScriptId === scriptId) {
+      this.switchTo(this.scripts[0]!.id);
+    }
+    saveScripts(this.scripts);
+    this.onTabsChanged?.();
+    return true;
   }
 
   getCode(): string {

@@ -47,6 +47,10 @@ export class GameEngine {
       }
     });
 
+    this.editor.setOnTabsChanged(() => this.renderScriptTabs());
+    this.renderScriptTabs();
+    this.setupScriptActions();
+
     this.runBtn = document.getElementById('run-btn') as HTMLButtonElement;
     this.runBtn.addEventListener('click', () => {
       if (this.executing) {
@@ -262,5 +266,62 @@ export class GameEngine {
       this.stockChart.render(stock, emotion);
     };
     animate();
+  }
+
+  private renderScriptTabs(): void {
+    const tabsEl = document.getElementById('script-tabs');
+    if (!tabsEl) return;
+    const scripts = this.editor.getScripts();
+    const activeId = this.editor.getActiveScriptId();
+    tabsEl.innerHTML = scripts.map(s =>
+      `<button class="script-tab${s.id === activeId ? ' active' : ''}" data-script-id="${s.id}">${s.name}</button>`
+    ).join('');
+
+    tabsEl.querySelectorAll('.script-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const id = (tab as HTMLElement).dataset['scriptId'];
+        if (id && id !== this.editor.getActiveScriptId()) {
+          if (this.executing) this.stopExecution();
+          this.editor.switchTo(id);
+          this.renderScriptTabs();
+        }
+      });
+    });
+  }
+
+  private setupScriptActions(): void {
+    document.getElementById('btn-new-script')?.addEventListener('click', () => {
+      const name = prompt('Script name:', `script_${this.editor.getScripts().length + 1}.js`);
+      if (name) {
+        if (this.executing) this.stopExecution();
+        this.editor.newScript(name);
+        this.renderScriptTabs();
+      }
+    });
+
+    document.getElementById('btn-rename-script')?.addEventListener('click', () => {
+      const active = this.editor.getScripts().find(s => s.id === this.editor.getActiveScriptId());
+      if (!active) return;
+      const name = prompt('Rename script:', active.name);
+      if (name && name !== active.name) {
+        this.editor.renameScript(active.id, name);
+        this.renderScriptTabs();
+      }
+    });
+
+    document.getElementById('btn-delete-script')?.addEventListener('click', () => {
+      const scripts = this.editor.getScripts();
+      if (scripts.length <= 1) {
+        alert('Cannot delete the last script.');
+        return;
+      }
+      const active = scripts.find(s => s.id === this.editor.getActiveScriptId());
+      if (!active) return;
+      if (confirm(`Delete "${active.name}"? This cannot be undone.`)) {
+        if (this.executing) this.stopExecution();
+        this.editor.deleteScript(active.id);
+        this.renderScriptTabs();
+      }
+    });
   }
 }

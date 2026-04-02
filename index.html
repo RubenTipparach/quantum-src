@@ -317,14 +317,57 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 6px 10px;
+      padding: 0;
       background: #0d0d18;
       border-bottom: 1px solid #1a3a2a;
       font-size: 12px;
       flex-shrink: 0;
+      min-height: 34px;
     }
-    #editor-header .title { color: #668877; }
-    #editor-header .title span { color: #00ff88; }
+    #script-tabs {
+      display: flex;
+      overflow-x: auto;
+      flex: 1;
+      min-width: 0;
+      scrollbar-width: none;
+    }
+    #script-tabs::-webkit-scrollbar { display: none; }
+    .script-tab {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      background: none;
+      border: none;
+      border-right: 1px solid #0f1f18;
+      border-bottom: 2px solid transparent;
+      color: #446655;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .script-tab:hover { color: #88bbaa; }
+    .script-tab.active { color: #00ff88; border-bottom-color: #00ff88; background: #0a1a12; }
+    #script-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 8px;
+      flex-shrink: 0;
+    }
+    .script-action-btn {
+      background: none;
+      border: 1px solid #1a3a2a;
+      color: #446655;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 3px 8px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .script-action-btn:hover { color: #00ff88; border-color: #00ff88; }
     #run-btn {
       background: #00aa55;
       border: none;
@@ -547,8 +590,14 @@
     <div id="sidebar" class="active-tab"></div>
     <div id="main-panel" class="active-tab">
       <div id="editor-header">
-        <span class="title"><span>program.js</span> — Ctrl+Enter to run</span>
-        <button id="run-btn">RUN</button>
+        <div id="script-tabs"></div>
+        <div id="script-actions">
+          <button id="btn-new-script" class="script-action-btn" title="New Script">+</button>
+          <button id="btn-rename-script" class="script-action-btn" title="Rename">ab</button>
+          <button id="btn-delete-script" class="script-action-btn" title="Delete">&#128465;</button>
+          <span style="width:1px;background:#1a3a2a;margin:0 4px;align-self:stretch;"></span>
+          <button id="run-btn">RUN</button>
+        </div>
       </div>
       <div id="editor-container"></div>
       <div id="bottom-strip">
