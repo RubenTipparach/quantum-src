@@ -35,16 +35,21 @@ export class Sidebar {
       }
     });
 
-    // Desktop: hover to show/hide
+    // Desktop: hover to show, mouseleave to hide
     this.el.addEventListener('mouseover', (e) => {
       if (isTouchDevice()) return;
       const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
       if (tag) this.showTooltip(tag);
     });
-    this.el.addEventListener('mouseout', (e) => {
+    this.el.addEventListener('mouseleave', () => {
+      if (isTouchDevice()) return;
+      this.tooltipEl.style.display = 'none';
+    });
+    // Hide when mouse moves to a non-tag area within sidebar
+    this.el.addEventListener('mouseover', (e) => {
       if (isTouchDevice()) return;
       const tag = (e.target as HTMLElement).closest('.stock-tag') as HTMLElement | null;
-      if (tag) this.tooltipEl.style.display = 'none';
+      if (!tag) this.tooltipEl.style.display = 'none';
     });
     // Single delegated click handler for all dynamic sidebar elements
     this.el.addEventListener('mousedown', (e) => {
@@ -76,9 +81,9 @@ export class Sidebar {
         return;
       }
 
-      // Stock tag tooltips
+      // Stock tag tooltips — only on touch devices (desktop uses hover)
       const tag = target.closest('.stock-tag') as HTMLElement | null;
-      if (tag) {
+      if (tag && isTouchDevice()) {
         e.preventDefault();
         if (this.tooltipEl.style.display === 'block' && this.tooltipEl.dataset['sym'] === tag.textContent) {
           this.tooltipEl.style.display = 'none';
