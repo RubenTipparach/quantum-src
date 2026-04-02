@@ -87,11 +87,12 @@
     .stock-row {
       display: flex;
       justify-content: space-between;
-      padding: 3px 0;
-      font-size: 11px;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 12px;
       color: #668877;
     }
-    .stock-row .sym { color: #88bbaa; font-weight: bold; width: 50px; flex-shrink: 0; }
+    .stock-row .sym { color: #88bbaa; font-weight: bold; width: 55px; flex-shrink: 0; }
 
     /* Hoverable/tappable stock tag with tooltip */
     .stock-tag {
@@ -101,7 +102,8 @@
       border: 1px solid #1a3a2a;
       border-radius: 3px;
       padding: 0 4px;
-      font-size: 10px;
+      font-size: 11px;
+      font-weight: bold;
       letter-spacing: 0.5px;
       transition: border-color 0.15s, background 0.15s;
     }
@@ -125,8 +127,8 @@
       pointer-events: none;
       box-shadow: 0 2px 12px rgba(0, 255, 136, 0.15);
     }
-    .stock-row .price { color: #44dd88; text-align: right; flex: 1; }
-    .stock-row .change { text-align: right; width: 55px; font-size: 10px; }
+    .stock-row .price { color: #44dd88; text-align: right; flex: 1; font-weight: bold; }
+    .stock-row .change { text-align: right; width: 55px; font-size: 11px; font-weight: bold; }
     .stock-row .change.up { color: #00ff88; }
     .stock-row .change.down { color: #ff5555; }
 

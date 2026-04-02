@@ -182,8 +182,7 @@ export class StockMarket {
     for (const s of this.stocks) {
       prices[s.symbol] = s.price;
       momentum[s.symbol] = s.momentum;
-      // Save last 60 candles to keep save size reasonable
-      candles[s.symbol] = s.candles.slice(-60);
+      candles[s.symbol] = s.candles;
     }
     return { prices, momentum, candles };
   }
