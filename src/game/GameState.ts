@@ -5,6 +5,7 @@ import type { ComputeHardware } from './Types';
 import { StockMarket } from './economy/StockMarket';
 import { NewsFeed } from './economy/NewsFeed';
 import { Shop } from './shop/Shop';
+import { SportsLeague } from './sports/SportsLeague';
 import type { Mission } from './missions/Missions';
 import { createMissions } from './missions/Missions';
 
@@ -37,6 +38,7 @@ export class GameState {
   newsFeed: NewsFeed;
   portfolio: Map<string, number> = new Map();
   shop: Shop;
+  sportsLeague: SportsLeague;
   missions: Mission[];
 
   private timeAccumulator = 0;
@@ -51,6 +53,7 @@ export class GameState {
     this.newsFeed = new NewsFeed(this.stockMarket.stocks.map(s => s.symbol));
     this.stockMarket.setNewsFeed(this.newsFeed);
     this.shop = new Shop();
+    this.sportsLeague = new SportsLeague();
     this.missions = createMissions();
     this.load();
   }
@@ -72,6 +75,13 @@ export class GameState {
   private tick(): void {
     this.newsFeed.tick();
     this.stockMarket.tick();
+    this.sportsLeague.tick();
+
+    // Auto-collect sports payouts
+    const payouts = this.sportsLeague.collectPayouts();
+    if (payouts > 0) {
+      this.money += payouts;
+    }
   }
 
   getComputeLabel(): string {

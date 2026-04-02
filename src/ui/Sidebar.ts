@@ -1,6 +1,7 @@
 import type { GameState } from '../game/GameState';
 import type { ConsoleOutput } from './ConsoleOutput';
 import type { Mission } from '../game/missions/Missions';
+import { BracketView } from './BracketView';
 
 export class Sidebar {
   private el: HTMLDivElement;
@@ -56,6 +57,11 @@ export class Sidebar {
       <div class="sb-section">
         <h3>Portfolio</h3>
         <div id="sb-portfolio"><div class="stat-row" style="color:#334455;">No holdings</div></div>
+      </div>
+
+      <div class="sb-section">
+        <h3>Sports & Betting</h3>
+        <div id="sb-sports"></div>
       </div>
 
       <div class="sb-section">
@@ -209,6 +215,7 @@ export class Sidebar {
     this.updateStocks();
     this.updateNews();
     this.updatePortfolio();
+    this.updateSports();
     this.updateMissions();
     this.updateShop();
     this.updateResearch();
@@ -283,6 +290,55 @@ export class Sidebar {
       entries.push(`<div class="portfolio-row" style="border-top:1px solid #1a3a2a;margin-top:4px;padding-top:4px;"><span style="color:#668877;">Total</span><span class="value">$${totalValue.toFixed(2)}</span></div>`);
       el.innerHTML = entries.join('');
     }
+  }
+
+  private updateSports(): void {
+    const el = this.el.querySelector('#sb-sports');
+    if (!el) return;
+    const sports = this.state.sportsLeague.sports;
+
+    el.innerHTML = sports.map(sport => {
+      let phaseText: string;
+      let phaseColor: string;
+      if (sport.phase === 'betting') {
+        const secs = Math.ceil(sport.phaseTicksLeft * 1.5);
+        phaseText = `BETTING ${secs}s`;
+        phaseColor = '#ffaa22';
+      } else if (sport.phase === 'playing') {
+        phaseText = sport.bracket[sport.currentRound]?.name ?? 'Playing';
+        phaseColor = '#00ff88';
+      } else {
+        phaseText = 'COMPLETE';
+        phaseColor = '#6688ff';
+      }
+
+      const betStatus = sport.playerBets
+        ? (sport.playerBets.payout > 0
+          ? `<span style="color:#00ff88;">+$${sport.playerBets.payout.toLocaleString()}</span>`
+          : '<span style="color:#668877;">Bet placed</span>')
+        : (sport.phase === 'betting'
+          ? '<span style="color:#ffaa22;">No bet</span>'
+          : '<span style="color:#334455;">—</span>');
+
+      return `<button class="sidebar-btn sport-btn" data-sport="${sport.id}" style="border-color:#2a3a4a55;">
+        <span style="display:flex;justify-content:space-between;align-items:center;">
+          <span>${sport.icon} ${sport.name} S${sport.seasonNumber}</span>
+          <span style="font-size:9px;color:${phaseColor};">${phaseText}</span>
+        </span>
+        <span style="display:flex;justify-content:space-between;font-size:9px;margin-top:2px;">
+          ${betStatus}
+          <span style="color:#446666;">View Bracket</span>
+        </span>
+      </button>`;
+    }).join('');
+
+    el.querySelectorAll('.sport-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sportId = (btn as HTMLElement).dataset['sport']!;
+        const sport = this.state.sportsLeague.getSport(sportId);
+        if (sport) BracketView.show(sport);
+      });
+    });
   }
 
   private updateMissions(): void {

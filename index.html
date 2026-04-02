@@ -157,6 +157,20 @@
     .research-done { font-size: 10px; color: #334455; padding: 2px 0; }
     .research-locked { font-size: 10px; color: #1a2a22; padding: 2px 0; }
 
+    /* Bracket modal */
+    #bracket-modal { position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;display:flex;align-items:center;justify-content:center; }
+    .bk-backdrop { position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85); }
+    .bk-content { position:relative;width:95%;max-width:950px;height:85%;background:#0a0a18;border:1px solid #1a3a2a;border-radius:8px;display:flex;flex-direction:column;overflow:hidden; }
+    .bk-header { display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#060610;border-bottom:1px solid #1a3a2a;color:#00ff88;font-size:13px;font-weight:bold;letter-spacing:1px; }
+    .bk-phase { font-size:10px;letter-spacing:0.5px;color:#6688ff; }
+    .bk-close { background:none;border:none;color:#668877;font-size:24px;cursor:pointer;font-family:inherit; }
+    .bk-close:hover { color:#ff5555; }
+    .bk-body { flex:1;overflow:auto;position:relative; }
+    #bracket-canvas { display:block; }
+    .bk-footer { padding:8px 16px;background:#060610;border-top:1px solid #1a3a2a;font-size:11px;color:#668877;display:flex;gap:12px;align-items:center;flex-wrap:wrap; }
+    .bk-bet-label { color:#88bbaa;font-weight:bold;margin-right:4px; }
+    .bk-payout { font-weight:bold;margin-left:auto; }
+
     .news-item {
       display: flex;
       align-items: flex-start;

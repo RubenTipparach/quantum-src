@@ -265,6 +265,80 @@ export class Sandbox {
     ctx.setProp(gameObj, 'getPortfolio', getPortfolio);
     getPortfolio.dispose();
 
+    // ── Sports Betting APIs ──
+
+    const getSports = ctx.newFunction('getSports', () => {
+      const data = state.sportsLeague.sports.map(s => ({
+        id: s.id,
+        name: s.name,
+        phase: s.phase,
+        seasonNumber: s.seasonNumber,
+        bettingTicksLeft: s.phase === 'betting' ? s.phaseTicksLeft : 0,
+        currentRound: s.currentRound,
+        hasBet: !!s.playerBets,
+      }));
+      return ctx.newString(JSON.stringify(data));
+    });
+    ctx.setProp(gameObj, 'getSports', getSports);
+    getSports.dispose();
+
+    const getTeams = ctx.newFunction('getTeams', (sportIdHandle) => {
+      const sportId = ctx.dump(sportIdHandle) as string;
+      const sport = state.sportsLeague.getSport(sportId);
+      if (!sport) return ctx.newString(JSON.stringify({ error: `Unknown sport: ${sportId}` }));
+      const data = sport.teams.map(t => ({
+        id: t.id,
+        name: t.name,
+        rating: t.rating,
+        seed: t.seed,
+        wins: t.wins,
+        losses: t.losses,
+      }));
+      return ctx.newString(JSON.stringify(data));
+    });
+    ctx.setProp(gameObj, 'getTeams', getTeams);
+    getTeams.dispose();
+
+    const getBracket = ctx.newFunction('getBracket', (sportIdHandle) => {
+      const sportId = ctx.dump(sportIdHandle) as string;
+      const sport = state.sportsLeague.getSport(sportId);
+      if (!sport) return ctx.newString(JSON.stringify({ error: `Unknown sport: ${sportId}` }));
+      const data = sport.bracket.map(round => ({
+        name: round.name,
+        matches: round.matches.map(m => ({
+          team1Id: m.team1Id,
+          team2Id: m.team2Id,
+          winnerId: m.winnerId,
+          played: m.played,
+          score: m.score,
+        })),
+      }));
+      return ctx.newString(JSON.stringify(data));
+    });
+    ctx.setProp(gameObj, 'getBracket', getBracket);
+    getBracket.dispose();
+
+    const placeBets = ctx.newFunction('placeBets', (sportIdHandle, wagerHandle, roundsHandle) => {
+      const sportId = ctx.dump(sportIdHandle) as string;
+      const wager = ctx.dump(wagerHandle) as number;
+      const roundsRaw = ctx.dump(roundsHandle) as Record<string, string[]>;
+
+      if (typeof sportId !== 'string') return ctx.newString('Usage: game.placeBets("sportId", wager, {round1: [...], ...})');
+      if (typeof wager !== 'number' || wager < 100) return ctx.newString('Minimum wager is $100');
+      if (wager > state.money) return ctx.newString(`Not enough money. Have $${state.money.toFixed(2)}, need $${wager}`);
+
+      const err = state.sportsLeague.placeBets(sportId, wager, roundsRaw);
+      if (err) return ctx.newString(err);
+
+      state.money -= wager;
+      const entry: ConsoleEntry = { type: 'log', text: `Placed $${wager.toLocaleString()} bet on ${sportId}` };
+      this.consoleBuffer.push(entry);
+      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
+      return ctx.newString(`Bet placed! $${wager.toLocaleString()} wagered on ${sportId}`);
+    });
+    ctx.setProp(gameObj, 'placeBets', placeBets);
+    placeBets.dispose();
+
     ctx.setProp(ctx.global, 'game', gameObj);
     gameObj.dispose();
   }
