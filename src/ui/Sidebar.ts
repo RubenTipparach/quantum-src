@@ -9,6 +9,7 @@ export class Sidebar {
   private console: ConsoleOutput;
   private prevPrices: Map<string, number> = new Map();
   private onLoadMission: ((mission: Mission) => void) | null = null;
+  private onInsertCode: ((code: string) => void) | null = null;
   private tooltipEl: HTMLDivElement;
 
   constructor(el: HTMLDivElement, state: GameState, console: ConsoleOutput) {
@@ -78,6 +79,20 @@ export class Sidebar {
       if (target.closest('#btn-settings')) {
         e.preventDefault();
         this.showSettingsModal();
+        return;
+      }
+
+      // Docs: clickable code snippets — insert into editor
+      const docExample = target.closest('.docs-example') as HTMLElement | null;
+      if (docExample && this.onInsertCode) {
+        e.preventDefault();
+        this.onInsertCode(docExample.textContent ?? '');
+        return;
+      }
+      const docFnCode = target.closest('.docs-fn > code') as HTMLElement | null;
+      if (docFnCode && this.onInsertCode) {
+        e.preventDefault();
+        this.onInsertCode(docFnCode.textContent ?? '');
         return;
       }
 
@@ -214,6 +229,10 @@ export class Sidebar {
 
   setOnLoadMission(fn: (mission: Mission) => void): void {
     this.onLoadMission = fn;
+  }
+
+  setOnInsertCode(fn: (code: string) => void): void {
+    this.onInsertCode = fn;
   }
 
   private render(): void {

@@ -51,6 +51,10 @@ export class GameEngine {
     this.renderScriptTabs();
     this.setupScriptActions();
 
+    this.sidebar.setOnInsertCode((code) => {
+      this.editor.insertAtCursor(code);
+    });
+
     this.runBtn = document.getElementById('run-btn') as HTMLButtonElement;
     this.runBtn.addEventListener('click', () => {
       if (this.executing) {

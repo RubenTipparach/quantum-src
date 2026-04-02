@@ -145,6 +145,21 @@ export class CodeEditor {
   getScripts(): ScriptFile[] { return this.scripts; }
   getActiveScriptId(): string { return this.activeScriptId; }
 
+  /** Insert code at the current cursor position (or end of document) */
+  insertAtCursor(text: string): void {
+    const pos = this.view.state.selection.main.head;
+    const doc = this.view.state.doc;
+    // If cursor is at position 0 and doc is non-empty, append at end
+    const insertPos = pos === 0 && doc.length > 0 ? doc.length : pos;
+    const needsNewline = insertPos > 0 && doc.sliceString(insertPos - 1, insertPos) !== '\n';
+    const insert = (needsNewline ? '\n' : '') + text + '\n';
+    this.view.dispatch({
+      changes: { from: insertPos, insert },
+      selection: { anchor: insertPos + insert.length },
+    });
+    this.view.focus();
+  }
+
   switchTo(scriptId: string): void {
     // Save current code first
     const current = this.scripts.find(s => s.id === this.activeScriptId);
