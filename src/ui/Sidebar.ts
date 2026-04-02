@@ -64,6 +64,13 @@ export class Sidebar {
         return;
       }
 
+      // Settings button
+      if (target.closest('#btn-settings')) {
+        e.preventDefault();
+        this.showSettingsModal();
+        return;
+      }
+
       // Stock tag tooltips
       const tag = target.closest('.stock-tag') as HTMLElement | null;
       if (tag) {
@@ -188,66 +195,164 @@ export class Sidebar {
 
   private render(): void {
     this.el.innerHTML = `
-      <div class="sb-header">QUANTUM SRC</div>
-
-      <div class="sb-section">
-        <h3>System Status</h3>
-        <div class="stat-row"><span>Year</span><span class="val" id="sb-year">1983</span></div>
-        <div class="stat-row"><span>Era</span><span class="val era" id="sb-era">Dawn of Computing</span></div>
-        <div class="stat-row"><span>Money</span><span class="val money" id="sb-money">$1,000</span></div>
-        <div class="stat-row"><span>Credits</span><span class="val" id="sb-credits" style="color:#aa88ff;">0</span></div>
-        <div class="stat-row"><span>Energy</span><span class="val energy" id="sb-energy">100 / 100 kWh</span></div>
-        <div class="stat-row"><span>Compute</span><span class="val" id="sb-compute">CPU x1</span></div>
-        <div class="stat-row"><span>RAM</span><span class="val" id="sb-ram">640KB</span></div>
+      <div class="sb-header">
+        <span>QUANTUM SRC</span>
+        <button id="btn-settings" class="sb-settings-btn" title="Settings">&#9881;</button>
       </div>
 
-      <div class="sb-section">
-        <h3>Missions</h3>
-        <div id="sb-missions"></div>
+      <div class="sb-tabs">
+        <button class="sb-tab active" data-stab="status">Status</button>
+        <button class="sb-tab" data-stab="market">Market</button>
+        <button class="sb-tab" data-stab="sports">Sports</button>
+        <button class="sb-tab" data-stab="research">Research</button>
       </div>
 
-      <div class="sb-section">
-        <h3>Stock Market</h3>
-        <div id="sb-stocks"></div>
+      <div class="sb-tab-content" id="stab-status">
+        <div class="sb-section">
+          <h3>System Status</h3>
+          <div class="stat-row"><span>Year</span><span class="val" id="sb-year">1983</span></div>
+          <div class="stat-row"><span>Era</span><span class="val era" id="sb-era">Dawn of Computing</span></div>
+          <div class="stat-row"><span>Money</span><span class="val money" id="sb-money">$1,000</span></div>
+          <div class="stat-row"><span>Credits</span><span class="val" id="sb-credits" style="color:#aa88ff;">0</span></div>
+          <div class="stat-row"><span>Energy</span><span class="val energy" id="sb-energy">100 / 100 kWh</span></div>
+          <div class="stat-row"><span>Compute</span><span class="val" id="sb-compute">CPU x1</span></div>
+          <div class="stat-row"><span>RAM</span><span class="val" id="sb-ram">640KB</span></div>
+        </div>
+
+        <div class="sb-section">
+          <h3>Missions</h3>
+          <div id="sb-missions"></div>
+        </div>
+
+        <div class="sb-section">
+          <h3>Shop</h3>
+          <div id="sb-shop"></div>
+        </div>
       </div>
 
-      <div class="sb-section">
-        <h3>News Feed</h3>
-        <button class="sidebar-btn" id="btn-news-modal" style="margin-bottom:6px;text-align:center;background:#0a1220;border-color:#2a4a6a;color:#6688ff;">
-          View All News & Market Impact
-        </button>
-        <div id="sb-news"><div class="stat-row" style="color:#334455;">No news yet...</div></div>
+      <div class="sb-tab-content" id="stab-market" style="display:none;">
+        <div class="sb-section">
+          <h3>Stock Market</h3>
+          <div id="sb-stocks"></div>
+        </div>
+
+        <div class="sb-section">
+          <h3>News Feed</h3>
+          <button class="sidebar-btn" id="btn-news-modal" style="margin-bottom:6px;text-align:center;background:#0a1220;border-color:#2a4a6a;color:#6688ff;">
+            View All News & Market Impact
+          </button>
+          <div id="sb-news"><div class="stat-row" style="color:#334455;">No news yet...</div></div>
+        </div>
+
+        <div class="sb-section">
+          <h3>Portfolio</h3>
+          <div id="sb-portfolio"><div class="stat-row" style="color:#334455;">No holdings</div></div>
+        </div>
       </div>
 
-      <div class="sb-section">
-        <h3>Portfolio</h3>
-        <div id="sb-portfolio"><div class="stat-row" style="color:#334455;">No holdings</div></div>
+      <div class="sb-tab-content" id="stab-sports" style="display:none;">
+        <div class="sb-section">
+          <h3>Sports & Betting</h3>
+          <div id="sb-sports"></div>
+        </div>
       </div>
 
-      <div class="sb-section">
-        <h3>Sports & Betting</h3>
-        <div id="sb-sports"></div>
+      <div class="sb-tab-content" id="stab-research" style="display:none;">
+        <div class="sb-section">
+          <h3>Research Tree</h3>
+          <button class="sidebar-btn" id="btn-view-tree" style="margin-bottom:8px;text-align:center;background:#0a1220;border-color:#2244aa;color:#6688ff;">
+            View Full Tree
+          </button>
+          <div id="sb-research"></div>
+        </div>
       </div>
 
-      <div class="sb-section">
-        <h3>Shop</h3>
-        <div id="sb-shop"></div>
-      </div>
-
-      <div class="sb-section">
-        <h3>Research Tree</h3>
-        <button class="sidebar-btn" id="btn-view-tree" style="margin-bottom:8px;text-align:center;background:#0a1220;border-color:#2244aa;color:#6688ff;">
-          View Full Tree
-        </button>
-        <div id="sb-research"></div>
-      </div>
+      <div id="sb-resize-handle" class="sb-resize-handle"></div>
     `;
+
+    // Tab switching
+    this.el.querySelectorAll('.sb-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = (tab as HTMLElement).dataset['stab'];
+        this.el.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this.el.querySelectorAll('.sb-tab-content').forEach(c => (c as HTMLElement).style.display = 'none');
+        const panel = this.el.querySelector(`#stab-${target}`) as HTMLElement;
+        if (panel) panel.style.display = 'block';
+      });
+    });
 
     this.el.querySelector('#btn-view-tree')?.addEventListener('click', () => {
       this.showResearchModal();
     });
 
+    // Resize handle
+    this.setupResize();
+
     this.update();
+  }
+
+  private setupResize(): void {
+    const handle = this.el.querySelector('#sb-resize-handle') as HTMLElement;
+    if (!handle) return;
+
+    let startX = 0;
+    let startW = 0;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const newW = Math.max(240, startW + (e.clientX - startX));
+      this.el.style.width = newW + 'px';
+      (this.el.parentElement as HTMLElement).style.gridTemplateColumns = newW + 'px 1fr';
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      startX = e.clientX;
+      startW = this.el.offsetWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  private showSettingsModal(): void {
+    document.getElementById('settings-modal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'settings-modal';
+    modal.innerHTML = `
+      <div class="nm-backdrop"></div>
+      <div class="nm-content" style="max-width:400px;height:auto;">
+        <div class="nm-header"><span>Settings</span><button class="nm-close">&times;</button></div>
+        <div style="padding:16px;">
+          <div style="color:#668877;font-family:'Lato',sans-serif;margin-bottom:12px;">Game Settings</div>
+          <button id="btn-reset-game" class="sidebar-btn" style="background:#2a0a0a;border-color:#ff4444;color:#ff4444;text-align:center;">
+            Reset Game (Delete All Progress)
+          </button>
+          <div style="color:#334455;font-size:12px;margin-top:8px;">This will erase all save data, stocks, sports, and reset everything to the beginning.</div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.querySelector('.nm-backdrop')!.addEventListener('click', () => modal.remove());
+    modal.querySelector('.nm-close')!.addEventListener('click', () => modal.remove());
+
+    modal.querySelector('#btn-reset-game')!.addEventListener('click', () => {
+      if (confirm('Are you sure? This will delete ALL progress and cannot be undone.')) {
+        this.state.resetSave();
+        modal.remove();
+        window.location.reload();
+      }
+    });
   }
 
   private showResearchModal(): void {
