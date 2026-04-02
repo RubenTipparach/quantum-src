@@ -22,8 +22,8 @@ const COLORS = {
   highlight: '#1a4a2a',
 };
 
-const MATCH_W = 150;
-const MATCH_H = 44;
+const MATCH_W = 170;
+const MATCH_H = 52;
 const ROUND_GAP = 50;
 const MATCH_V_GAP = 8;
 
@@ -253,7 +253,7 @@ export class BracketView {
     }
 
     // Round headers
-    ctx.font = 'bold 10px Courier New';
+    ctx.font = 'bold 12px IBM Plex Mono, Courier New';
     ctx.textAlign = 'center';
     for (let r = 0; r < roundCount; r++) {
       const x = padX + r * colW + MATCH_W / 2;
@@ -342,7 +342,7 @@ export class BracketView {
       const ty = y + i * halfH;
 
       if (!id) {
-        ctx.font = '9px Courier New';
+        ctx.font = '12px IBM Plex Mono, Courier New';
         ctx.fillStyle = COLORS.textDim;
         ctx.textAlign = 'left';
         ctx.fillText('TBD', x + 6, ty + halfH / 2 + 3);
@@ -372,13 +372,13 @@ export class BracketView {
       }
 
       // Seed
-      ctx.font = '8px Courier New';
+      ctx.font = '12px IBM Plex Mono, Courier New';
       ctx.fillStyle = COLORS.seed;
       ctx.textAlign = 'left';
       ctx.fillText(`(${team.seed})`, x + 4, ty + halfH / 2 + 3);
 
       // Team name
-      ctx.font = isWinner ? 'bold 9px Courier New' : '9px Courier New';
+      ctx.font = isWinner ? 'bold 9px IBM Plex Mono, Courier New' : '12px IBM Plex Mono, Courier New';
       ctx.fillStyle = isWinner ? COLORS.winner : isLoser ? COLORS.loser : COLORS.text;
       const nameX = x + 26;
       const maxNameW = MATCH_W - 50;
@@ -386,7 +386,7 @@ export class BracketView {
 
       // Score
       if (match.score) {
-        ctx.font = 'bold 9px Courier New';
+        ctx.font = 'bold 9px IBM Plex Mono, Courier New';
         ctx.fillStyle = isWinner ? COLORS.winner : COLORS.score;
         ctx.textAlign = 'right';
         ctx.fillText(String(match.score[scoreIdx]), x + MATCH_W - 15, ty + halfH / 2 + 3);

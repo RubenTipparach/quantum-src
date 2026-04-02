@@ -118,7 +118,7 @@ export class StockChart {
     ctx.lineWidth = 0.5;
     ctx.strokeRect(padding.left + chartW + 2, curY - 8, 55, 16);
     ctx.fillStyle = COLORS.priceLabel;
-    ctx.font = 'bold 11px Courier New';
+    ctx.font = 'bold 12px IBM Plex Mono, Courier New';
     ctx.textAlign = 'left';
     ctx.fillText(`$${stock.price.toFixed(2)}`, padding.left + chartW + 5, curY + 4);
 
@@ -129,24 +129,24 @@ export class StockChart {
     const changeColor = priceChange >= 0 ? GREEN : RED;
     const changeSign = priceChange >= 0 ? '+' : '';
 
-    ctx.font = 'bold 13px Courier New';
+    ctx.font = 'bold 13px IBM Plex Mono, Courier New';
     ctx.fillStyle = COLORS.priceLabel;
     ctx.textAlign = 'left';
     ctx.fillText(stock.symbol, padding.left + 4, padding.top - 12);
 
-    ctx.font = 'bold 12px Courier New';
+    ctx.font = 'bold 12px IBM Plex Mono, Courier New';
     ctx.fillStyle = COLORS.priceLabel;
     const priceX = padding.left + 4 + ctx.measureText(stock.symbol).width + 10;
     ctx.fillText(`$${stock.price.toFixed(2)}`, priceX, padding.top - 12);
 
-    ctx.font = 'bold 12px Courier New';
+    ctx.font = 'bold 12px IBM Plex Mono, Courier New';
     ctx.fillStyle = changeColor;
     const changeX = priceX + ctx.measureText(`$${stock.price.toFixed(2)}`).width + 8;
     ctx.fillText(`${changeSign}${pctChange.toFixed(1)}%`, changeX, padding.top - 12);
 
     // Bottom: timeframe label + bar count
     const tfLabel = this.timeframe === 60 ? '1m' : this.timeframe === 300 ? '5m' : '10m';
-    ctx.font = '10px Courier New';
+    ctx.font = '12px IBM Plex Mono, Courier New';
     ctx.fillStyle = COLORS.timeframeLabel;
     ctx.textAlign = 'left';
     ctx.fillText(`${tfLabel} · ${tfCandles.length} bars`, padding.left + 4, h - padding.bottom + 16);
@@ -280,7 +280,7 @@ export class StockChart {
     ctx.fillRect(x + pos - 1, y - 1, 3, h + 2);
 
     // Labels
-    ctx.font = '10px Courier New';
+    ctx.font = '12px IBM Plex Mono, Courier New';
     ctx.fillStyle = '#ff4444';
     ctx.textAlign = 'left';
     ctx.fillText('FEAR', x, y + h + 10);
@@ -297,7 +297,7 @@ export class StockChart {
   ): void {
     const gridLines = 3;
     const range = maxP - minP || 1;
-    ctx.font = '10px Courier New';
+    ctx.font = '12px IBM Plex Mono, Courier New';
     ctx.textAlign = 'left';
 
     for (let i = 0; i <= gridLines; i++) {

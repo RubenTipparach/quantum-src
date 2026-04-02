@@ -178,7 +178,7 @@ export class Sidebar {
     const eraGroups = new Map<string, typeof nodes>();
     for (const era of eraOrder) eraGroups.set(era, nodes.filter(n => n.era === era));
 
-    const nodeW = 160, nodeH = 60, colGap = 40, rowGap = 30, eraGap = 50, padX = 40, padY = 40;
+    const nodeW = 180, nodeH = 65, colGap = 40, rowGap = 30, eraGap = 50, padX = 40, padY = 40;
     const positions = new Map<string, { x: number; y: number }>();
     let curY = padY;
     for (const era of eraOrder) {
@@ -204,7 +204,7 @@ export class Sidebar {
     ctx.fillStyle = '#0a0a18'; ctx.fillRect(0, 0, totalW, totalH);
 
     // Era labels
-    curY = padY; ctx.font = '11px Courier New';
+    curY = padY; ctx.font = '12px IBM Plex Mono, Courier New';
     for (const era of eraOrder) {
       const group = eraGroups.get(era) ?? [];
       if (group.length === 0) continue;
@@ -233,17 +233,17 @@ export class Sidebar {
       ctx.strokeStyle = node.researched ? '#00ff88' : node.unlocked ? '#336655' : '#1a2a22';
       ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(pos.x, pos.y, nodeW, nodeH, 4); ctx.fill(); ctx.stroke();
       ctx.fillStyle = node.researched ? '#00ff88' : node.unlocked ? '#88bbaa' : '#334455';
-      ctx.font = 'bold 10px Courier New'; ctx.fillText(node.name, pos.x + 8, pos.y + 16, nodeW - 16);
-      ctx.font = '9px Courier New';
-      if (node.researched) { ctx.fillStyle = '#006633'; ctx.fillText('[DONE]', pos.x + 8, pos.y + 30); }
+      ctx.font = 'bold 12px IBM Plex Mono, Courier New'; ctx.fillText(node.name, pos.x + 8, pos.y + 16, nodeW - 16);
+      ctx.font = '12px IBM Plex Mono, Courier New';
+      if (node.researched) { ctx.fillStyle = '#006633'; ctx.fillText('[DONE]', pos.x + 8, pos.y + 32); }
       else if (node.unlocked) {
-        ctx.fillStyle = '#aa88ff'; ctx.fillText(`${node.creditsCost} credits`, pos.x + 8, pos.y + 30);
-        ctx.fillStyle = '#6688ff'; ctx.fillText(`+${node.yearAdvance}yr`, pos.x + 100, pos.y + 30);
-      } else { ctx.fillStyle = '#222233'; ctx.fillText('[LOCKED]', pos.x + 8, pos.y + 30); }
+        ctx.fillStyle = '#aa88ff'; ctx.fillText(`${node.creditsCost} credits`, pos.x + 8, pos.y + 32);
+        ctx.fillStyle = '#6688ff'; ctx.fillText(`+${node.yearAdvance}yr`, pos.x + 100, pos.y + 32);
+      } else { ctx.fillStyle = '#222233'; ctx.fillText('[LOCKED]', pos.x + 8, pos.y + 32); }
       ctx.fillStyle = node.researched ? '#336655' : node.unlocked ? '#446655' : '#1a2a22';
-      ctx.font = '8px Courier New';
-      const desc = node.description.length > 35 ? node.description.slice(0, 33) + '...' : node.description;
-      ctx.fillText(desc, pos.x + 8, pos.y + 46, nodeW - 16);
+      ctx.font = '12px IBM Plex Mono, Courier New';
+      const desc = node.description.length > 30 ? node.description.slice(0, 28) + '...' : node.description;
+      ctx.fillText(desc, pos.x + 8, pos.y + 48, nodeW - 16);
     }
   }
 
