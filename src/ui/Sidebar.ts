@@ -53,6 +53,23 @@ export class Sidebar {
       }
     });
 
+    // Delegate click for sport bracket buttons (survives innerHTML rebuilds)
+    this.el.addEventListener('click', (e) => {
+      const sportBtn = (e.target as HTMLElement).closest('.sport-btn') as HTMLElement | null;
+      if (sportBtn) {
+        const sportId = sportBtn.dataset['sport'];
+        if (sportId) {
+          const sport = this.state.sportsLeague.getSport(sportId);
+          if (sport) BracketView.show(sport);
+        }
+      }
+
+      const newsBtn = (e.target as HTMLElement).closest('#btn-news-modal') as HTMLElement | null;
+      if (newsBtn) {
+        this.showNewsModal();
+      }
+    });
+
     this.render();
   }
 
@@ -69,6 +86,68 @@ export class Sidebar {
     if (left + 210 > window.innerWidth) left = window.innerWidth - 214;
     this.tooltipEl.style.top = top + 'px';
     this.tooltipEl.style.left = Math.max(4, left) + 'px';
+  }
+
+  private showNewsModal(): void {
+    document.getElementById('news-modal')?.remove();
+
+    const events = this.state.newsFeed.getRecentEvents();
+    const stocks = this.state.stockMarket.stocks;
+
+    const modal = document.createElement('div');
+    modal.id = 'news-modal';
+
+    const eventsHtml = events.length === 0
+      ? '<div style="color:#334455;padding:16px;">No news yet...</div>'
+      : events.map(ev => {
+        const isActive = ev.remaining > 0;
+        const isBullish = ev.impact > 0;
+        const icon = ev.category === 'world' ? '\u{1F30E}'
+          : ev.category === 'ceo' ? '\u{1F464}'
+          : ev.category === 'research' ? '\u{1F52C}'
+          : ev.category === 'market' ? '\u{1F4C8}'
+          : ev.category === 'sector' ? '\u{1F4CA}'
+          : '\u{1F3E2}';
+        const impactSign = isBullish ? '+' : '';
+        const impactPct = (ev.impact * 100).toFixed(2);
+        const impactColor = isBullish ? '#00cc66' : '#dd3333';
+        const statusDot = isActive ? `<span style="color:${impactColor};margin-right:4px;">&#9679;</span>` : '';
+
+        // Show which stocks are affected and by how much
+        const affectedStocks = ev.targets.length === 0 ? stocks : stocks.filter(s => ev.targets.includes(s.symbol));
+        const stockImpacts = affectedStocks.map(s => {
+          const pts = s.price * ev.impact * (isActive ? ev.remaining / ev.duration : 0);
+          const ptsStr = pts === 0 && !isActive
+            ? `<span style="color:#334455;">ended</span>`
+            : `<span style="color:${impactColor};">${impactSign}${(s.price * ev.impact).toFixed(2)} pts</span>`;
+          return `<span class="news-stock-impact"><span style="color:#88bbaa;">${s.symbol}</span> ${ptsStr}</span>`;
+        }).join('');
+
+        const targetLabel = ev.targets.length === 0 ? 'ALL STOCKS' : ev.targets.join(', ');
+
+        return `<div class="news-modal-item" style="opacity:${isActive ? '1' : '0.5'};">
+          <div class="news-modal-headline">${statusDot}${icon} ${ev.headline}</div>
+          <div class="news-modal-meta">
+            <span style="color:${impactColor};">${impactSign}${impactPct}% per tick</span>
+            <span style="color:#446666;">${ev.category.toUpperCase()}</span>
+            <span style="color:#446666;">${targetLabel}</span>
+            ${isActive ? `<span style="color:#ffaa22;">${ev.remaining} ticks left</span>` : '<span style="color:#334455;">expired</span>'}
+          </div>
+          <div class="news-modal-impacts">${stockImpacts}</div>
+        </div>`;
+      }).join('');
+
+    modal.innerHTML = `
+      <div class="nm-backdrop"></div>
+      <div class="nm-content">
+        <div class="nm-header"><span>News Feed & Market Impact</span><button class="nm-close">&times;</button></div>
+        <div class="nm-body">${eventsHtml}</div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.querySelector('.nm-backdrop')!.addEventListener('click', () => modal.remove());
+    modal.querySelector('.nm-close')!.addEventListener('click', () => modal.remove());
   }
 
   setOnLoadMission(fn: (mission: Mission) => void): void {
@@ -102,6 +181,9 @@ export class Sidebar {
 
       <div class="sb-section">
         <h3>News Feed</h3>
+        <button class="sidebar-btn" id="btn-news-modal" style="margin-bottom:6px;text-align:center;background:#0a1220;border-color:#2a4a6a;color:#6688ff;">
+          View All News & Market Impact
+        </button>
         <div id="sb-news"><div class="stat-row" style="color:#334455;">No news yet...</div></div>
       </div>
 
@@ -374,22 +456,15 @@ export class Sidebar {
       return `<button class="sidebar-btn sport-btn" data-sport="${sport.id}" style="border-color:#2a3a4a55;">
         <span style="display:flex;justify-content:space-between;align-items:center;">
           <span>${sport.icon} ${sport.name} S${sport.seasonNumber}</span>
-          <span style="font-size:9px;color:${phaseColor};">${phaseText}</span>
+          <span style="color:${phaseColor};">${phaseText}</span>
         </span>
-        <span style="display:flex;justify-content:space-between;font-size:9px;margin-top:2px;">
+        <span style="display:flex;justify-content:space-between;margin-top:2px;">
           ${betStatus}
           <span style="color:#446666;">View Bracket</span>
         </span>
       </button>`;
     }).join('');
-
-    el.querySelectorAll('.sport-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sportId = (btn as HTMLElement).dataset['sport']!;
-        const sport = this.state.sportsLeague.getSport(sportId);
-        if (sport) BracketView.show(sport);
-      });
-    });
+    // Click handled by event delegation in constructor
   }
 
   private updateMissions(): void {
