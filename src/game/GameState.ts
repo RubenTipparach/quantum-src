@@ -23,6 +23,7 @@ interface SaveData {
   completedMissions: string[];
   purchasedShopItems: string[];
   stockMarket?: object;
+  newsFeed?: object;
   sportsLeague?: object;
 }
 
@@ -157,6 +158,7 @@ export class GameState {
       completedMissions: this.missions.filter(m => m.completed).map(m => m.id),
       purchasedShopItems: this.shop.items.filter(i => i.purchased).map(i => i.id),
       stockMarket: this.stockMarket.serialize(),
+      newsFeed: this.newsFeed.serialize(),
       sportsLeague: this.sportsLeague.serialize(),
     };
 
@@ -223,6 +225,11 @@ export class GameState {
       // Restore stock market state
       if (data.stockMarket) {
         this.stockMarket.deserialize(data.stockMarket as Parameters<typeof this.stockMarket.deserialize>[0]);
+      }
+
+      // Restore news feed
+      if (data.newsFeed) {
+        this.newsFeed.deserialize(data.newsFeed as Parameters<typeof this.newsFeed.deserialize>[0]);
       }
 
       // Restore sports league state

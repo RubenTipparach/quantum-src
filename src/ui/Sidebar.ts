@@ -90,7 +90,7 @@ export class Sidebar {
     let top = rect.top - this.tooltipEl.offsetHeight - 6;
     if (top < 4) top = rect.bottom + 6; // flip below if no room above
     let left = rect.left;
-    if (left + 210 > window.innerWidth) left = window.innerWidth - 214;
+    if (left + 240 > window.innerWidth) left = window.innerWidth - 244;
     this.tooltipEl.style.top = top + 'px';
     this.tooltipEl.style.left = Math.max(4, left) + 'px';
   }
@@ -127,28 +127,25 @@ export class Sidebar {
         const impactSign = isBullish ? '+' : '';
         const impactPct = (ev.impact * 100).toFixed(2);
         const impactColor = isBullish ? '#00cc66' : '#dd3333';
-        const dimImpactColor = isBullish ? '#1a6633' : '#661a1a';
-        const statusColor = isActive ? impactColor : '#446666';
-        const statusDot = `<span style="color:${statusColor};margin-right:4px;">&#9679;</span>`;
+        const statusDot = `<span style="color:${impactColor};margin-right:4px;">&#9679;</span>`;
 
         // Show which stocks are affected and by how much
         const affectedStocks = ev.targets.length === 0 ? stocks : stocks.filter(s => ev.targets.includes(s.symbol));
         const stockImpacts = affectedStocks.map(s => {
           const ptsVal = s.price * ev.impact;
-          const ptsColor = isActive ? impactColor : dimImpactColor;
-          const ptsStr = `<span style="color:${ptsColor};">${impactSign}${ptsVal.toFixed(2)}</span>`;
+          const ptsStr = `<span style="color:${impactColor};">${impactSign}${ptsVal.toFixed(2)}</span>`;
           return `<span class="news-stock-impact">${makeStockTag(s.symbol)} ${ptsStr}</span>`;
         }).join('');
 
         const targetLabel = ev.targets.length === 0 ? 'ALL STOCKS' : ev.targets.map(t => makeStockTag(t)).join(' ');
 
-        return `<div class="news-modal-item${isActive ? '' : ' news-expired'}">
+        return `<div class="news-modal-item">
           <div class="news-modal-headline">${statusDot}${icon} ${ev.headline}</div>
           <div class="news-modal-meta">
-            <span style="color:${isActive ? impactColor : '#556666'};">${impactSign}${impactPct}%/tick</span>
+            <span style="color:${impactColor};">${impactSign}${impactPct}%/tick</span>
             <span style="color:#668877;">${ev.category.toUpperCase()}</span>
             <span>${targetLabel}</span>
-            <span style="color:${isActive ? '#ffaa22' : '#446655'};">${isActive ? `${ev.remaining} ticks left` : 'expired'}</span>
+            <span style="color:#ffaa22;">${isActive ? `${ev.remaining} ticks left` : 'expired'}</span>
           </div>
           <div class="news-modal-impacts">${stockImpacts}</div>
         </div>`;

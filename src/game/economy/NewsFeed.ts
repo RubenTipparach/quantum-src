@@ -474,4 +474,23 @@ export class NewsFeed {
       createdAt: this.tickCount,
     });
   }
+
+  /** Serialize state for saving — keeps last 50 events */
+  serialize(): { events: NewsEvent[]; nextId: number; tickCount: number; nextEventAt: number } {
+    return {
+      events: this.events.slice(-50),
+      nextId: this.nextId,
+      tickCount: this.tickCount,
+      nextEventAt: this.nextEventAt,
+    };
+  }
+
+  /** Restore state from save */
+  deserialize(data: { events?: NewsEvent[]; nextId?: number; tickCount?: number; nextEventAt?: number }): void {
+    if (!data) return;
+    if (data.events) this.events = data.events;
+    if (data.nextId !== undefined) this.nextId = data.nextId;
+    if (data.tickCount !== undefined) this.tickCount = data.tickCount;
+    if (data.nextEventAt !== undefined) this.nextEventAt = data.nextEventAt;
+  }
 }
