@@ -164,97 +164,118 @@ export class Sandbox {
   }
 
   private injectAPI(ctx: QuickJSContext, state: GameState): void {
+    const self = this;
+
+    // Helper: create a function and attach to an object, then dispose
+    const fn = (obj: any, name: string, func: (...args: any[]) => any) => {
+      const handle = ctx.newFunction(name, func);
+      ctx.setProp(obj, name, handle);
+      handle.dispose();
+    };
+
+    // ── Global output ──
+
     const consoleObj = ctx.newObject();
-    const logFn = ctx.newFunction('log', (...args) => {
-      const texts = args.map(a => this.stringify(ctx.dump(a)));
+    fn(consoleObj, 'log', (...args) => {
+      const texts = args.map(a => self.stringify(ctx.dump(a)));
       const entry: ConsoleEntry = { type: 'log', text: texts.join(' ') };
-      this.consoleBuffer.push(entry);
-      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
+      self.consoleBuffer.push(entry);
+      self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
     });
-    ctx.setProp(consoleObj, 'log', logFn);
     ctx.setProp(ctx.global, 'console', consoleObj);
-    logFn.dispose();
     consoleObj.dispose();
 
-    const printFn = ctx.newFunction('print', (...args) => {
-      const texts = args.map(a => this.stringify(ctx.dump(a)));
+    fn(ctx.global, 'print', (...args) => {
+      const texts = args.map(a => self.stringify(ctx.dump(a)));
       const entry: ConsoleEntry = { type: 'log', text: texts.join(' ') };
-      this.consoleBuffer.push(entry);
-      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
+      self.consoleBuffer.push(entry);
+      self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
     });
-    ctx.setProp(ctx.global, 'print', printFn);
-    printFn.dispose();
 
-    const gameObj = ctx.newObject();
+    // ── sys — system status ──
 
-    const getMoney = ctx.newFunction('getMoney', () => ctx.newNumber(state.money));
-    ctx.setProp(gameObj, 'getMoney', getMoney);
-    getMoney.dispose();
+    const sysObj = ctx.newObject();
 
-    const getYear = ctx.newFunction('getYear', () => ctx.newNumber(state.year));
-    ctx.setProp(gameObj, 'getYear', getYear);
-    getYear.dispose();
+    fn(sysObj, 'funds', () => ctx.newNumber(state.money));
+    fn(sysObj, 'year', () => ctx.newNumber(state.year));
+    fn(sysObj, 'energy', () => ctx.newNumber(state.energy));
+    fn(sysObj, 'credits', () => ctx.newNumber(state.researchCredits));
+    fn(sysObj, 'era', () => ctx.newString(state.getEraName()));
+    fn(sysObj, 'compute', () => ctx.newString(state.getComputeLabel()));
 
-    const getEnergy = ctx.newFunction('getEnergy', () => ctx.newNumber(state.energy));
-    ctx.setProp(gameObj, 'getEnergy', getEnergy);
-    getEnergy.dispose();
+    ctx.setProp(ctx.global, 'sys', sysObj);
+    sysObj.dispose();
 
-    const getStocks = ctx.newFunction('getStocks', () => {
-      const data = state.stockMarket.stocks.map(s => ({
+    // ── market — stock market ──
+
+    const marketObj = ctx.newObject();
+
+    fn(marketObj, 'scan', () => {
+      return self.jsonToHandle(ctx, state.stockMarket.stocks.map(s => ({
         symbol: s.symbol,
+        name: s.name,
+        sector: s.sector,
         price: Math.round(s.price * 100) / 100,
-      }));
-      return this.jsonToHandle(ctx, data);
+      })));
     });
-    ctx.setProp(gameObj, 'getStocks', getStocks);
-    getStocks.dispose();
 
-    const buyFn = ctx.newFunction('buy', (symHandle, qtyHandle) => {
+    fn(marketObj, 'price', (symHandle) => {
+      const sym = (ctx.dump(symHandle) as string)?.toUpperCase();
+      const stock = state.stockMarket.getStock(sym);
+      if (!stock) return ctx.newNumber(0);
+      return ctx.newNumber(Math.round(stock.price * 100) / 100);
+    });
+
+    fn(marketObj, 'buy', (symHandle, qtyHandle) => {
       const symbol = ctx.dump(symHandle) as string;
       const qty = ctx.dump(qtyHandle) as number;
       if (typeof symbol !== 'string' || typeof qty !== 'number') {
-        return ctx.newString('Usage: game.buy("SYMBOL", quantity)');
+        return ctx.newString('Usage: market.buy("SYMBOL", quantity)');
       }
       const sym = symbol.toUpperCase();
       const stock = state.stockMarket.getStock(sym);
       if (!stock) return ctx.newString(`Unknown stock: ${sym}`);
       const cost = stock.price * qty;
-      if (cost > state.money) return ctx.newString(`Not enough money. Need $${cost.toFixed(2)}`);
+      if (cost > state.money) return ctx.newString(`Insufficient funds. Need $${cost.toFixed(2)}`);
       state.money -= cost;
       const current = state.portfolio.get(stock.symbol) ?? 0;
       state.portfolio.set(stock.symbol, current + qty);
       state.newsFeed.onLargeTrade(stock.symbol, true, qty, stock.price);
-      const entry: ConsoleEntry = { type: 'log', text: `Bought ${qty} ${stock.symbol} @ $${stock.price.toFixed(2)}` };
-      this.consoleBuffer.push(entry);
-      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
+      const entry: ConsoleEntry = { type: 'log', text: `Acquired ${qty} ${stock.symbol} @ $${stock.price.toFixed(2)}` };
+      self.consoleBuffer.push(entry);
+      self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
       return ctx.newString(entry.text);
     });
-    ctx.setProp(gameObj, 'buy', buyFn);
-    buyFn.dispose();
 
-    const sellFn = ctx.newFunction('sell', (symHandle, qtyHandle) => {
+    fn(marketObj, 'sell', (symHandle, qtyHandle) => {
       const symbol = ctx.dump(symHandle) as string;
       const qty = ctx.dump(qtyHandle) as number;
       if (typeof symbol !== 'string' || typeof qty !== 'number') {
-        return ctx.newString('Usage: game.sell("SYMBOL", quantity)');
+        return ctx.newString('Usage: market.sell("SYMBOL", quantity)');
       }
       const sym = symbol.toUpperCase();
       const owned = state.portfolio.get(sym) ?? 0;
-      if (owned < qty) return ctx.newString(`Only own ${owned} shares of ${sym}`);
+      if (owned < qty) return ctx.newString(`Only holding ${owned} shares of ${sym}`);
       const stock = state.stockMarket.getStock(sym);
       if (!stock) return ctx.newString(`Unknown stock: ${sym}`);
       state.money += stock.price * qty;
       state.portfolio.set(sym, owned - qty);
       state.newsFeed.onLargeTrade(sym, false, qty, stock.price);
       const entry: ConsoleEntry = { type: 'log', text: `Sold ${qty} ${sym} @ $${stock.price.toFixed(2)}` };
-      this.consoleBuffer.push(entry);
-      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
+      self.consoleBuffer.push(entry);
+      self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
       return ctx.newString(entry.text);
     });
-    ctx.setProp(gameObj, 'sell', sellFn);
-    sellFn.dispose();
 
-    const getNews = ctx.newFunction('getNews', () => {
+    fn(marketObj, 'holdings', () => {
+      const data: Record<string, number> = {};
+      for (const [sym, qty] of state.portfolio) {
+        if (qty > 0) data[sym] = qty;
+      }
+      return self.jsonToHandle(ctx, data);
+    });
+
+    fn(marketObj, 'feed', () => {
       const allStocks = state.stockMarket.stocks;
       const events = state.newsFeed.getRecentEvents().map(ev => {
         const affected = ev.targets.length === 0 ? allStocks : allStocks.filter(s => ev.targets.includes(s.symbol));
@@ -273,100 +294,81 @@ export class Sandbox {
           stockImpacts,
         };
       });
-      return this.jsonToHandle(ctx, events);
+      return self.jsonToHandle(ctx, events);
     });
-    ctx.setProp(gameObj, 'getNews', getNews);
-    getNews.dispose();
 
-    const getPortfolio = ctx.newFunction('getPortfolio', () => {
-      const data: Record<string, number> = {};
-      for (const [sym, qty] of state.portfolio) {
-        if (qty > 0) data[sym] = qty;
-      }
-      return this.jsonToHandle(ctx, data);
-    });
-    ctx.setProp(gameObj, 'getPortfolio', getPortfolio);
-    getPortfolio.dispose();
+    ctx.setProp(ctx.global, 'market', marketObj);
+    marketObj.dispose();
 
-    // ── Sports Betting APIs ──
+    // ── sports — sports betting ──
 
-    const getSports = ctx.newFunction('getSports', () => {
-      const data = state.sportsLeague.sports.map(s => ({
+    const sportsObj = ctx.newObject();
+
+    fn(sportsObj, 'leagues', () => {
+      return self.jsonToHandle(ctx, state.sportsLeague.sports.map(s => ({
         id: s.id,
         name: s.name,
         phase: s.phase,
-        seasonNumber: s.seasonNumber,
-        bettingTicksLeft: s.phase === 'betting' ? s.phaseTicksLeft : 0,
-        currentRound: s.currentRound,
+        season: s.seasonNumber,
+        ticksLeft: s.phase === 'betting' ? s.phaseTicksLeft : s.roundTicksLeft,
+        round: s.currentRound,
         hasBet: !!s.playerBets,
-      }));
-      return this.jsonToHandle(ctx, data);
+      })));
     });
-    ctx.setProp(gameObj, 'getSports', getSports);
-    getSports.dispose();
 
-    const getTeams = ctx.newFunction('getTeams', (sportIdHandle) => {
-      const sportId = ctx.dump(sportIdHandle) as string;
+    fn(sportsObj, 'roster', (idHandle) => {
+      const sportId = ctx.dump(idHandle) as string;
       const sport = state.sportsLeague.getSport(sportId);
-      if (!sport) return this.jsonToHandle(ctx, { error: `Unknown sport: ${sportId}` });
-      const data = sport.teams.map(t => ({
+      if (!sport) return self.jsonToHandle(ctx, { error: `Unknown league: ${sportId}` });
+      return self.jsonToHandle(ctx, sport.teams.map(t => ({
         id: t.id,
         name: t.name,
         rating: t.rating,
         seed: t.seed,
         wins: t.wins,
         losses: t.losses,
-      }));
-      return this.jsonToHandle(ctx, data);
+      })));
     });
-    ctx.setProp(gameObj, 'getTeams', getTeams);
-    getTeams.dispose();
 
-    const getBracket = ctx.newFunction('getBracket', (sportIdHandle) => {
-      const sportId = ctx.dump(sportIdHandle) as string;
+    fn(sportsObj, 'bracket', (idHandle) => {
+      const sportId = ctx.dump(idHandle) as string;
       const sport = state.sportsLeague.getSport(sportId);
-      if (!sport) return this.jsonToHandle(ctx, { error: `Unknown sport: ${sportId}` });
-      const data = sport.bracket.map(round => ({
+      if (!sport) return self.jsonToHandle(ctx, { error: `Unknown league: ${sportId}` });
+      return self.jsonToHandle(ctx, sport.bracket.map(round => ({
         name: round.name,
         matches: round.matches.map(m => ({
-          team1Id: m.team1Id,
-          team2Id: m.team2Id,
-          winnerId: m.winnerId,
+          team1: m.team1Id,
+          team2: m.team2Id,
+          winner: m.winnerId,
           played: m.played,
           score: m.score,
         })),
-      }));
-      return this.jsonToHandle(ctx, data);
+      })));
     });
-    ctx.setProp(gameObj, 'getBracket', getBracket);
-    getBracket.dispose();
 
-    const placeBets = ctx.newFunction('placeBets', (sportIdHandle, wagerHandle, roundsHandle) => {
-      const sportId = ctx.dump(sportIdHandle) as string;
-      const wager = ctx.dump(wagerHandle) as number;
-      const roundsRaw = ctx.dump(roundsHandle) as Record<string, string[]>;
+    fn(sportsObj, 'wager', (idHandle, amtHandle, picksHandle) => {
+      const sportId = ctx.dump(idHandle) as string;
+      const amount = ctx.dump(amtHandle) as number;
+      const picks = ctx.dump(picksHandle) as Record<string, string[]>;
 
-      if (typeof sportId !== 'string') return ctx.newString('Usage: game.placeBets("sportId", wagerPerRound, {round1: [...], ...})');
-      if (typeof wager !== 'number' || wager < 100) return ctx.newString('Minimum wager per round is $100');
+      if (typeof sportId !== 'string') return ctx.newString('Usage: sports.wager("leagueId", amount, {round1: [...], ...})');
+      if (typeof amount !== 'number' || amount < 100) return ctx.newString('Minimum wager is $100 per round');
 
-      // Calculate total cost (wager * number of rounds being bet on)
-      const totalCost = state.sportsLeague.calcBetCost(roundsRaw, wager);
-      if (totalCost > state.money) return ctx.newString(`Not enough money. Need $${totalCost} ($${wager}/round), have $${state.money.toFixed(2)}`);
+      const totalCost = state.sportsLeague.calcBetCost(picks, amount);
+      if (totalCost > state.money) return ctx.newString(`Insufficient funds. Need $${totalCost} ($${amount}/round), have $${state.money.toFixed(2)}`);
 
-      const err = state.sportsLeague.placeBets(sportId, wager, roundsRaw);
+      const err = state.sportsLeague.placeBets(sportId, amount, picks);
       if (err) return ctx.newString(err);
 
       state.money -= totalCost;
-      const entry: ConsoleEntry = { type: 'log', text: `Placed $${totalCost.toLocaleString()} in bets on ${sportId} ($${wager}/round)` };
-      this.consoleBuffer.push(entry);
-      this.outputMap.push({ entry, stepIndex: this.executionTrace.length - 1 });
-      return ctx.newString(`Bets placed! $${totalCost.toLocaleString()} wagered on ${sportId}`);
+      const entry: ConsoleEntry = { type: 'log', text: `Wagered $${totalCost.toLocaleString()} on ${sportId} ($${amount}/round)` };
+      self.consoleBuffer.push(entry);
+      self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
+      return ctx.newString(entry.text);
     });
-    ctx.setProp(gameObj, 'placeBets', placeBets);
-    placeBets.dispose();
 
-    ctx.setProp(ctx.global, 'game', gameObj);
-    gameObj.dispose();
+    ctx.setProp(ctx.global, 'sports', sportsObj);
+    sportsObj.dispose();
   }
 
   isReady(): boolean {

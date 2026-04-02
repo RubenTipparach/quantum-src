@@ -293,176 +293,86 @@ export class Sidebar {
 
       <div class="sb-tab-content" id="stab-docs" style="display:none;">
         <div class="sb-section docs-section">
-          <h3>API Documentation</h3>
-          <p class="docs-intro">Use these functions in your code editor. Data functions return objects/arrays directly — no JSON.parse needed.</p>
+          <h3>Terminal Reference</h3>
+          <p class="docs-intro">QuantumSrc exposes three modules: <code>sys</code>, <code>market</code>, and <code>sports</code>. All queries return native objects — no parsing needed.</p>
 
           <div class="docs-group">
-            <h4>System</h4>
-            <div class="docs-fn">
-              <code>game.getMoney()</code>
-              <span class="docs-ret">Returns: number</span>
-              <p>Current cash balance.</p>
-            </div>
-            <div class="docs-fn">
-              <code>game.getYear()</code>
-              <span class="docs-ret">Returns: number</span>
-              <p>Current in-game year.</p>
-            </div>
-            <div class="docs-fn">
-              <code>game.getEnergy()</code>
-              <span class="docs-ret">Returns: number</span>
-              <p>Current energy level in kWh.</p>
-            </div>
+            <h4>sys — System Status</h4>
+            <div class="docs-fn"><code>sys.funds()</code> <span class="docs-ret">number</span> <p>Current cash balance.</p></div>
+            <div class="docs-fn"><code>sys.year()</code> <span class="docs-ret">number</span> <p>Current in-game year.</p></div>
+            <div class="docs-fn"><code>sys.energy()</code> <span class="docs-ret">number</span> <p>Available energy (kWh).</p></div>
+            <div class="docs-fn"><code>sys.credits()</code> <span class="docs-ret">number</span> <p>Research credits from missions.</p></div>
+            <div class="docs-fn"><code>sys.era()</code> <span class="docs-ret">string</span> <p>Current computing era.</p></div>
+            <div class="docs-fn"><code>sys.compute()</code> <span class="docs-ret">string</span> <p>Hardware description.</p></div>
+            <pre class="docs-example">print("Year " + sys.year() + " — " + sys.era())
+print("Funds: $" + sys.funds())
+print("Compute: " + sys.compute())</pre>
           </div>
 
           <div class="docs-group">
-            <h4>Stock Market</h4>
-            <div class="docs-fn">
-              <code>game.getStocks()</code>
-              <span class="docs-ret">Returns: object</span>
-              <p>Array of all stocks with current prices.</p>
-              <pre class="docs-example">let stocks = game.getStocks();
-// [{symbol: "CPUX", price: 12.50}, ...]
+            <h4>market — Stock Market</h4>
+            <div class="docs-fn"><code>market.scan()</code> <span class="docs-ret">array</span> <p>All stocks with symbol, name, sector, price.</p></div>
+            <pre class="docs-example">let stocks = market.scan()
 for (let s of stocks) {
-  console.log(s.symbol + ": $" + s.price);
+  print(s.symbol + " [" + s.sector + "] $" + s.price)
 }</pre>
-            </div>
-            <div class="docs-fn">
-              <code>game.buy(symbol, quantity)</code>
-              <span class="docs-ret">Returns: string</span>
-              <p>Buy shares of a stock. Deducts cost from money.</p>
-              <pre class="docs-example">game.buy("CPUX", 10);  // Buy 10 shares</pre>
-            </div>
-            <div class="docs-fn">
-              <code>game.sell(symbol, quantity)</code>
-              <span class="docs-ret">Returns: string</span>
-              <p>Sell shares you own. Adds proceeds to money.</p>
-              <pre class="docs-example">game.sell("CPUX", 5);  // Sell 5 shares</pre>
-            </div>
-            <div class="docs-fn">
-              <code>game.getPortfolio()</code>
-              <span class="docs-ret">Returns: object</span>
-              <p>Your current stock holdings.</p>
-              <pre class="docs-example">let p = game.getPortfolio();
-// {CPUX: 10, ROBO: 5}</pre>
-            </div>
-            <div class="docs-fn">
-              <code>game.getNews()</code>
-              <span class="docs-ret">Returns: object</span>
-              <p>Recent news events with market impact data.</p>
-              <pre class="docs-example">let news = game.getNews();
-// [{headline: "...",
-//   category: "world",
-//   impact: 0.05,
-//   active: true,
-//   remaining: 12,    // ticks left
-//   duration: 20,     // total ticks
-//   targets: ["CPUX","ROBO"],
-//   stockImpacts: {   // $ change/tick
-//     CPUX: 0.63, ROBO: 0.15
-//   }}, ...]
+            <div class="docs-fn"><code>market.price(symbol)</code> <span class="docs-ret">number</span> <p>Quick price lookup for one ticker.</p></div>
+            <pre class="docs-example">let p = market.price("CPUX")
+if (p < 10) market.buy("CPUX", 5)</pre>
+            <div class="docs-fn"><code>market.buy(symbol, qty)</code> <span class="docs-ret">string</span> <p>Acquire shares. Deducts from funds.</p></div>
+            <div class="docs-fn"><code>market.sell(symbol, qty)</code> <span class="docs-ret">string</span> <p>Liquidate shares. Adds to funds.</p></div>
+            <div class="docs-fn"><code>market.holdings()</code> <span class="docs-ret">object</span> <p>Current positions. Keys = symbols, values = qty.</p></div>
+            <pre class="docs-example">let h = market.holdings()
+// { CPUX: 10, ROBO: 5 }</pre>
+            <div class="docs-fn"><code>market.feed()</code> <span class="docs-ret">array</span> <p>Live news feed with per-stock impact.</p></div>
+            <pre class="docs-example">let news = market.feed()
 for (let n of news) {
-  if (n.active && n.impact > 0) {
-    console.log("Bullish: " + n.headline);
-    console.log("  Lasts " + n.remaining
-      + "/" + n.duration + " ticks");
-    for (let sym in n.stockImpacts) {
-      console.log("  " + sym + ": +"
-        + n.stockImpacts[sym] + "/tick");
-    }
+  if (!n.active) continue
+  print(n.headline)
+  print("  " + n.remaining + "/" + n.duration + " ticks")
+  for (let sym in n.stockImpacts) {
+    print("  " + sym + ": $" + n.stockImpacts[sym] + "/tick")
   }
 }</pre>
-            </div>
           </div>
 
           <div class="docs-group">
-            <h4>Sports Betting</h4>
-            <div class="docs-fn">
-              <code>game.getSports()</code>
-              <span class="docs-ret">Returns: object</span>
-              <p>All sports with season status and betting info.</p>
-              <pre class="docs-example">let sports = game.getSports();
-// [{id: "football", name: "Football",
-//   phase: "betting", seasonNumber: 1,
-//   bettingTicksLeft: 180, hasBet: false},
-//  ...]</pre>
+            <h4>sports — League Betting</h4>
+            <div class="docs-fn"><code>sports.leagues()</code> <span class="docs-ret">array</span> <p>All leagues with season, phase, timing.</p></div>
+            <pre class="docs-example">let lg = sports.leagues()
+for (let l of lg) {
+  print(l.name + " S" + l.season + " [" + l.phase + "]")
+}</pre>
+            <div class="docs-fn"><code>sports.roster(leagueId)</code> <span class="docs-ret">array</span> <p>16 teams with id, name, rating, seed, wins, losses.</p></div>
+            <pre class="docs-example">let teams = sports.roster("football")
+teams.sort((a, b) => b.rating - a.rating)
+print("Top: " + teams[0].name + " (" + teams[0].rating + ")")</pre>
+            <div class="docs-fn"><code>sports.bracket(leagueId)</code> <span class="docs-ret">array</span> <p>Bracket rounds with match results (team1, team2, winner, score).</p></div>
+            <div class="docs-fn"><code>sports.wager(leagueId, amount, picks)</code> <span class="docs-ret">string</span> <p>Place bracket bets. Amount is per-round. Locked once placed.</p></div>
+            <div class="docs-table">
+              <div class="docs-table-row"><span>Depth</span><span>Payout</span><span>Example</span></div>
+              <div class="docs-table-row"><span>1 round</span><span>1:2</span><span>$50 &rarr; $100</span></div>
+              <div class="docs-table-row"><span>2 rounds</span><span>1:4</span><span>$50 &rarr; $200</span></div>
+              <div class="docs-table-row"><span>3 rounds</span><span>1:8</span><span>$50 &rarr; $400</span></div>
+              <div class="docs-table-row"><span>4 rounds</span><span>1:16</span><span>$50 &rarr; $800</span></div>
             </div>
-            <div class="docs-fn">
-              <code>game.getTeams(sportId)</code>
-              <span class="docs-ret">Returns: object</span>
-              <p>All 16 teams in a sport with ratings and records.</p>
-              <pre class="docs-example">let teams = JSON.parse(
-  game.getTeams("football")
-);
-// [{id: "football_01",
-//   name: "Portland Thunder",
-//   rating: 88, seed: 1,
-//   wins: 2, losses: 0}, ...]
+            <pre class="docs-example">let t = sports.roster("football")
+t.sort((a, b) => b.rating - a.rating)
 
-// Sort by rating to find best teams
-teams.sort((a, b) => b.rating - a.rating);
-console.log("Best: " + teams[0].name);</pre>
-            </div>
-            <div class="docs-fn">
-              <code>game.getBracket(sportId)</code>
-              <span class="docs-ret">Returns: object</span>
-              <p>Current tournament bracket with match results.</p>
-              <pre class="docs-example">let bracket = JSON.parse(
-  game.getBracket("football")
-);
-// [{name: "Round of 16", matches: [
-//   {team1Id: "football_01",
-//    team2Id: "football_16",
-//    winnerId: "football_01",
-//    played: true,
-//    score: [4, 2]}, ...]}, ...]</pre>
-            </div>
-            <div class="docs-fn">
-              <code>game.placeBets(sportId, wager, picks)</code>
-              <span class="docs-ret">Returns: string</span>
-              <p>Place bracket predictions. Wager is per-round. Bets lock once placed and can't be changed. Payout = 2^depth per correct pick.</p>
-              <div class="docs-table">
-                <div class="docs-table-row"><span>Depth</span><span>Payout</span><span>Example</span></div>
-                <div class="docs-table-row"><span>1 round ahead</span><span>1:2</span><span>$50 &rarr; $100</span></div>
-                <div class="docs-table-row"><span>2 rounds ahead</span><span>1:4</span><span>$50 &rarr; $200</span></div>
-                <div class="docs-table-row"><span>3 rounds ahead</span><span>1:8</span><span>$50 &rarr; $400</span></div>
-                <div class="docs-table-row"><span>4 rounds ahead</span><span>1:16</span><span>$50 &rarr; $800</span></div>
-              </div>
-              <pre class="docs-example">// Get teams sorted by seed
-let teams = JSON.parse(
-  game.getTeams("football")
-);
-let byId = {};
-for (let t of teams) byId[t.id] = t;
-
-// Bet on top seeds to win
-game.placeBets("football", 100, {
-  round1: [
-    "football_01", "football_08",
-    "football_05", "football_04",
-    "football_06", "football_03",
-    "football_07", "football_02"
-  ],
-  round4: ["football_01"] // champion
-});</pre>
-            </div>
+sports.wager("football", 100, {
+  round1: [t[0].id, t[7].id, t[4].id, t[3].id,
+           t[5].id, t[2].id, t[6].id, t[1].id],
+  round4: [t[0].id]
+})</pre>
           </div>
 
           <div class="docs-group">
             <h4>Output</h4>
-            <div class="docs-fn">
-              <code>console.log(value)</code>
-              <p>Print to the console output panel.</p>
-            </div>
-            <div class="docs-fn">
-              <code>print(value)</code>
-              <p>Alias for console.log.</p>
-            </div>
+            <div class="docs-fn"><code>print(value)</code> <p>Write to the output terminal.</p></div>
           </div>
 
           <div class="docs-group">
-            <h4>Stock Symbols</h4>
-            <p class="docs-intro">12 stocks across sectors:</p>
+            <h4>Ticker Reference</h4>
             <div class="docs-symbols">
               <span><b>CPUX</b> Tech</span> <span><b>ROBO</b> Tech</span>
               <span><b>NTWK</b> Telecom</span> <span><b>DATA</b> Data</span>
@@ -474,8 +384,8 @@ game.placeBets("football", 100, {
           </div>
 
           <div class="docs-group">
-            <h4>Sport IDs</h4>
-            <p class="docs-intro"><code>"football"</code>, <code>"basketball"</code>, <code>"baseball"</code>, <code>"soccer"</code></p>
+            <h4>League IDs</h4>
+            <p class="docs-intro"><code>"football"</code> <code>"basketball"</code> <code>"baseball"</code> <code>"soccer"</code></p>
           </div>
         </div>
       </div>

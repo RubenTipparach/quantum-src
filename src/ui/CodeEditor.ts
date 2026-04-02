@@ -4,16 +4,19 @@ import { javascript } from '@codemirror/lang-javascript';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { basicSetup } from 'codemirror';
 
-const STARTER_CODE = `// Write trading programs here!
-// API: game.getMoney(), game.getStocks(), game.buy("SYM", qty), game.sell("SYM", qty)
+const STARTER_CODE = `// QuantumSrc Terminal v1.0
+// Type 'print' to output. See Docs tab for full API reference.
 
-let stocks = JSON.parse(game.getStocks());
-print("Current market:");
+let stocks = market.scan()
+print("=== Market Report ===")
 for (let s of stocks) {
-  print("  " + s.symbol + ": $" + s.price);
+  print("  " + s.symbol + " [" + s.sector + "] $" + s.price)
 }
 
-print("Cash: $" + game.getMoney());
+print("")
+print("Funds: $" + sys.funds())
+print("Year:  " + sys.year())
+print("Era:   " + sys.era())
 `;
 
 const SCRIPTS_KEY = 'quantumsrc_scripts';
