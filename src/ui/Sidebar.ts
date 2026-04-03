@@ -608,8 +608,13 @@ sports.wager("football", 100, {
       ctx.fillStyle = node.researched ? '#0a2a18' : node.unlocked ? '#0a1a22' : '#0a0a12';
       ctx.strokeStyle = node.researched ? '#00ff88' : node.unlocked ? '#336655' : '#1a2a22';
       ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(pos.x, pos.y, nodeW, nodeH, 4); ctx.fill(); ctx.stroke();
+      // Icon
+      ctx.font = '16px sans-serif';
       ctx.fillStyle = node.researched ? '#00ff88' : node.unlocked ? '#88bbaa' : '#334455';
-      ctx.font = 'bold 12px IBM Plex Mono, Courier New'; ctx.fillText(node.name, pos.x + 8, pos.y + 16, nodeW - 16);
+      ctx.fillText(node.icon, pos.x + 6, pos.y + 18);
+      // Name
+      ctx.font = 'bold 12px IBM Plex Mono, Courier New';
+      ctx.fillText(node.name, pos.x + 26, pos.y + 16, nodeW - 34);
       ctx.font = '12px IBM Plex Mono, Courier New';
       if (node.researched) { ctx.fillStyle = '#006633'; ctx.fillText('[DONE]', pos.x + 8, pos.y + 32); }
       else if (node.unlocked) {
@@ -852,14 +857,14 @@ sports.wager("football", 100, {
       const canAfford = s.researchCredits >= n.creditsCost;
       const style = canAfford ? '' : 'opacity:0.6;';
       html.push(`<button class="sidebar-btn research-btn" style="${style}" data-id="${n.id}" title="${n.description}">
-        ${n.name}
+        ${n.icon} ${n.name}
         <span class="cost" style="color:#aa88ff;">${n.creditsCost} credits</span>
         <span class="year-advance">+${n.yearAdvance}yr</span>
       </button>`);
     }
 
     if (done.length > 0) {
-      for (const n of done) html.push(`<div class="research-done">[DONE] ${n.name}</div>`);
+      for (const n of done) html.push(`<div class="research-done">${n.icon} ${n.name}</div>`);
     }
     if (locked.length > 0) html.push(`<div class="research-locked" style="margin-top:4px;">${locked.length} locked</div>`);
 

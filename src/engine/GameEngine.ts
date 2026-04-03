@@ -47,9 +47,9 @@ export class GameEngine {
       }
     });
 
-    this.editor.setOnTabsChanged(() => this.renderScriptTabs());
-    this.renderScriptTabs();
-    this.setupScriptActions();
+    this.editor.setOnTabsChanged(() => this.updateFileLabel());
+    this.updateFileLabel();
+    this.setupFileManager();
 
     this.sidebar.setOnInsertCode((code) => {
       this.editor.insertAtCursor(code);
@@ -264,6 +264,7 @@ export class GameEngine {
       lastTime = now;
       this.gameState.update(delta);
       this.sidebar.update();
+      this.updateTopStatusBar();
 
       const stock = this.gameState.stockMarket.getSelectedStock();
       const emotion = this.gameState.stockMarket.getMarketEmotion();
@@ -272,60 +273,112 @@ export class GameEngine {
     animate();
   }
 
-  private renderScriptTabs(): void {
-    const tabsEl = document.getElementById('script-tabs');
-    if (!tabsEl) return;
-    const scripts = this.editor.getScripts();
-    const activeId = this.editor.getActiveScriptId();
-    tabsEl.innerHTML = scripts.map(s =>
-      `<button class="script-tab${s.id === activeId ? ' active' : ''}" data-script-id="${s.id}">${s.name}</button>`
-    ).join('');
+  private updateTopStatusBar(): void {
+    const s = this.gameState;
+    const m = document.getElementById('ts-money');
+    const c = document.getElementById('ts-credits');
+    const y = document.getElementById('ts-year');
+    const e = document.getElementById('ts-era');
+    if (m) m.textContent = '$' + s.money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (c) c.textContent = s.researchCredits + ' credits';
+    if (y) y.textContent = String(s.year);
+    if (e) e.textContent = s.getEraName();
+  }
 
-    tabsEl.querySelectorAll('.script-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const id = (tab as HTMLElement).dataset['scriptId'];
-        if (id && id !== this.editor.getActiveScriptId()) {
-          if (this.executing) this.stopExecution();
-          this.editor.switchTo(id);
-          this.renderScriptTabs();
-        }
-      });
+  private updateFileLabel(): void {
+    const label = document.getElementById('current-file-name');
+    if (!label) return;
+    const active = this.editor.getScripts().find(s => s.id === this.editor.getActiveScriptId());
+    label.textContent = active?.name ?? 'untitled';
+  }
+
+  private setupFileManager(): void {
+    document.getElementById('btn-file-manager')?.addEventListener('click', () => {
+      this.showFileManagerModal();
     });
   }
 
-  private setupScriptActions(): void {
-    document.getElementById('btn-new-script')?.addEventListener('click', () => {
-      const name = prompt('Script name:', `script_${this.editor.getScripts().length + 1}.js`);
-      if (name) {
-        if (this.executing) this.stopExecution();
-        this.editor.newScript(name);
-        this.renderScriptTabs();
-      }
-    });
+  private showFileManagerModal(): void {
+    document.getElementById('file-manager-modal')?.remove();
 
-    document.getElementById('btn-rename-script')?.addEventListener('click', () => {
-      const active = this.editor.getScripts().find(s => s.id === this.editor.getActiveScriptId());
-      if (!active) return;
-      const name = prompt('Rename script:', active.name);
-      if (name && name !== active.name) {
-        this.editor.renameScript(active.id, name);
-        this.renderScriptTabs();
-      }
-    });
+    const modal = document.createElement('div');
+    modal.id = 'file-manager-modal';
 
-    document.getElementById('btn-delete-script')?.addEventListener('click', () => {
+    const renderFiles = () => {
       const scripts = this.editor.getScripts();
-      if (scripts.length <= 1) {
-        alert('Cannot delete the last script.');
-        return;
-      }
-      const active = scripts.find(s => s.id === this.editor.getActiveScriptId());
-      if (!active) return;
-      if (confirm(`Delete "${active.name}"? This cannot be undone.`)) {
-        if (this.executing) this.stopExecution();
-        this.editor.deleteScript(active.id);
-        this.renderScriptTabs();
-      }
-    });
+      const activeId = this.editor.getActiveScriptId();
+      const body = modal.querySelector('.nm-body');
+      if (!body) return;
+
+      body.innerHTML = scripts.map(s => {
+        const date = new Date(s.updatedAt);
+        const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `<div class="fm-file${s.id === activeId ? ' active' : ''}" data-id="${s.id}">
+          <div>
+            <div class="fm-file-name">${s.name}</div>
+            <div style="color:#334455;font-size:12px;">${s.code.split('\\n').length} lines \u00B7 ${time}</div>
+          </div>
+          <div class="fm-file-actions">
+            <button class="fm-file-btn fm-rename" title="Rename">\u270F</button>
+            <button class="fm-file-btn fm-delete delete" title="Delete">\u2715</button>
+          </div>
+        </div>`;
+      }).join('') +
+      `<button class="sidebar-btn" id="fm-new" style="margin:8px 12px;text-align:center;border-color:#336655;color:#00ff88;">+ New Script</button>`;
+
+      // Wire up events
+      body.querySelectorAll('.fm-file').forEach(el => {
+        const id = (el as HTMLElement).dataset['id']!;
+        el.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('.fm-file-btn')) return;
+          if (this.executing) this.stopExecution();
+          this.editor.switchTo(id);
+          this.updateFileLabel();
+          renderFiles();
+        });
+        el.querySelector('.fm-rename')?.addEventListener('click', () => {
+          const script = this.editor.getScripts().find(s => s.id === id);
+          if (!script) return;
+          const name = prompt('Rename:', script.name);
+          if (name && name !== script.name) {
+            this.editor.renameScript(id, name);
+            this.updateFileLabel();
+            renderFiles();
+          }
+        });
+        el.querySelector('.fm-delete')?.addEventListener('click', () => {
+          if (this.editor.getScripts().length <= 1) { alert('Cannot delete the last script.'); return; }
+          const script = this.editor.getScripts().find(s => s.id === id);
+          if (script && confirm(`Delete "${script.name}"?`)) {
+            if (this.executing) this.stopExecution();
+            this.editor.deleteScript(id);
+            this.updateFileLabel();
+            renderFiles();
+          }
+        });
+      });
+      body.querySelector('#fm-new')?.addEventListener('click', () => {
+        const name = prompt('Script name:', `script_${this.editor.getScripts().length + 1}.js`);
+        if (name) {
+          if (this.executing) this.stopExecution();
+          this.editor.newScript(name);
+          this.updateFileLabel();
+          renderFiles();
+        }
+      });
+    };
+
+    modal.innerHTML = `
+      <div class="nm-backdrop"></div>
+      <div class="nm-content" style="max-width:450px;height:auto;max-height:80%;">
+        <div class="nm-header"><span>\u{1F4C1} Scripts</span><button class="nm-close">&times;</button></div>
+        <div class="nm-body" style="overflow-y:auto;"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.querySelector('.nm-backdrop')!.addEventListener('click', () => modal.remove());
+    modal.querySelector('.nm-close')!.addEventListener('click', () => modal.remove());
+    renderFiles();
   }
 }

@@ -1,6 +1,7 @@
 export interface ResearchNode {
   id: string;
   name: string;
+  icon: string;
   description: string;
   /** Cost in research credits (earned from missions) */
   creditsCost: number;
@@ -17,6 +18,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'basic_trading',
       name: 'Basic Trading Algorithms',
+      icon: '\u{1F4B9}',
       description: 'Write simple buy/sell programs for the stock market.',
       creditsCost: 5,
       era: 'dawn',
@@ -28,6 +30,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'market_analysis',
       name: 'Market Pattern Analysis',
+      icon: '\u{1F4CA}',
       description: 'Detect trends and patterns in stock data.',
       creditsCost: 10,
       era: 'dawn',
@@ -39,6 +42,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'overclock',
       name: 'CPU Overclocking',
+      icon: '\u{1F525}',
       description: 'Push your CPU beyond factory limits for faster code execution.',
       creditsCost: 8,
       era: 'dawn',
@@ -50,6 +54,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'multi_core',
       name: 'Multi-Core Processing',
+      icon: '\u{2699}',
       description: 'Unlock parallel execution across multiple CPU cores.',
       creditsCost: 15,
       era: 'dawn',
@@ -63,6 +68,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'hash_mining',
       name: 'Hash Mining',
+      icon: '\u26CF',
       description: 'Mine cryptocurrency by computing cryptographic hashes.',
       creditsCost: 20,
       era: 'crypto',
@@ -74,6 +80,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'gpu_compute',
       name: 'GPU Compute',
+      icon: '\u{1F4BB}',
       description: 'Transition to massively parallel GPU computing.',
       creditsCost: 30,
       era: 'crypto',
@@ -85,6 +92,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'gpu_farm',
       name: 'GPU Mining Farm',
+      icon: '\u{1F3ED}',
       description: 'Scale to hundreds of GPU cores.',
       creditsCost: 40,
       era: 'crypto',
@@ -96,6 +104,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'blockchain_exploit',
       name: 'Blockchain Analysis',
+      icon: '\u{1F517}',
       description: 'Analyze blockchain for market manipulation opportunities.',
       creditsCost: 25,
       era: 'crypto',
@@ -109,6 +118,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'quantum_basics',
       name: 'Quantum Computing Basics',
+      icon: '\u269B',
       description: 'Harness quantum superposition for exponential compute.',
       creditsCost: 50,
       era: 'quantum',
@@ -120,6 +130,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'encryption_breaking',
       name: 'Encryption Breaking',
+      icon: '\u{1F510}',
       description: 'Use quantum algorithms to break RSA/elliptic-curve encryption.',
       creditsCost: 60,
       era: 'quantum',
@@ -131,6 +142,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'market_collapse',
       name: 'Financial System Disruption',
+      icon: '\u{1F4A5}',
       description: 'Break encryption securing global financial systems.',
       creditsCost: 80,
       era: 'quantum',
@@ -144,6 +156,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'subatomic_compute',
       name: 'Sub-Atomic Computing',
+      icon: '\u{1F52C}',
       description: 'Compute at the sub-atomic level. Unlimited processing.',
       creditsCost: 100,
       era: 'subatomic',
@@ -155,6 +168,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'energy_synthesis',
       name: 'Energy Synthesis',
+      icon: '\u26A1',
       description: 'Generate unlimited energy from sub-atomic reactions.',
       creditsCost: 120,
       era: 'subatomic',
@@ -166,6 +180,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'megastructure_foundation',
       name: 'Megastructure Engineering',
+      icon: '\u{1F3D7}',
       description: 'Design and construct planetary-scale megastructures.',
       creditsCost: 150,
       era: 'subatomic',
@@ -177,6 +192,7 @@ export function createResearchTree(): ResearchNode[] {
     {
       id: 'post_scarcity',
       name: 'Post-Scarcity Protocol',
+      icon: '\u{1F310}',
       description: 'Distribute unlimited resources. Humanity transcends economics.',
       creditsCost: 200,
       era: 'postscarcity',

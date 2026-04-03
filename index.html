@@ -323,59 +323,82 @@
       min-height: 0;
     }
 
+    /* Top status bar */
+    #top-status-bar {
+      display: flex;
+      gap: 16px;
+      padding: 5px 12px;
+      background: #060610;
+      border-bottom: 1px solid #1a3a2a;
+      font-size: 13px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    #ts-money { color: #44dd88; font-weight: bold; }
+    #ts-credits { color: #aa88ff; }
+    #ts-year { color: #6688ff; }
+    #ts-era { color: #446666; }
+
     #editor-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0;
+      padding: 4px 8px;
       background: #0d0d18;
       border-bottom: 1px solid #1a3a2a;
-      font-size: 12px;
+      font-size: 13px;
       flex-shrink: 0;
-      flex-wrap: wrap;
     }
-    #script-tabs {
-      display: flex;
-      flex-wrap: wrap;
-      flex: 1;
-      min-width: 0;
-    }
-    .script-tab {
+    #editor-file-info {
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 6px 12px;
-      background: none;
-      border: none;
-      border-right: 1px solid #0f1f18;
-      border-bottom: 2px solid transparent;
-      color: #446655;
-      font-family: inherit;
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: color 0.15s, border-color 0.15s;
+      gap: 8px;
     }
-    .script-tab:hover { color: #88bbaa; }
-    .script-tab.active { color: #00ff88; border-bottom-color: #00ff88; background: #0a1a12; }
+    #current-file-name { color: #00ff88; font-weight: bold; }
     #script-actions {
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 0 8px;
-      flex-shrink: 0;
     }
     .script-action-btn {
       background: none;
       border: 1px solid #1a3a2a;
       color: #446655;
       font-family: inherit;
-      font-size: 13px;
+      font-size: 14px;
       padding: 3px 8px;
       cursor: pointer;
       border-radius: 3px;
     }
     .script-action-btn:hover { color: #00ff88; border-color: #00ff88; }
+
+    /* File manager modal */
+    #file-manager-modal { position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;display:flex;align-items:center;justify-content:center; }
+    .fm-file {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid #0f1f18;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .fm-file:hover { background: #0f2a1a; }
+    .fm-file.active { background: #0a2a18; border-left: 3px solid #00ff88; }
+    .fm-file-name { color: #88bbaa; font-size: 13px; }
+    .fm-file.active .fm-file-name { color: #00ff88; font-weight: bold; }
+    .fm-file-actions { display: flex; gap: 6px; }
+    .fm-file-btn {
+      background: none;
+      border: 1px solid #1a3a2a;
+      color: #446655;
+      font-size: 12px;
+      padding: 2px 6px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .fm-file-btn:hover { color: #00ff88; border-color: #00ff88; }
+    .fm-file-btn.delete:hover { color: #ff4444; border-color: #ff4444; }
     #run-btn {
       background: #00aa55;
       border: none;
@@ -597,13 +620,18 @@
     </div>
     <div id="sidebar" class="active-tab"></div>
     <div id="main-panel" class="active-tab">
+      <div id="top-status-bar">
+        <span id="ts-money">$1,000</span>
+        <span id="ts-credits">0 credits</span>
+        <span id="ts-year">1983</span>
+        <span id="ts-era">Dawn of Computing</span>
+      </div>
       <div id="editor-header">
-        <div id="script-tabs"></div>
+        <div id="editor-file-info">
+          <button id="btn-file-manager" class="script-action-btn" title="File Manager">&#128193;</button>
+          <span id="current-file-name">program.js</span>
+        </div>
         <div id="script-actions">
-          <button id="btn-new-script" class="script-action-btn" title="New Script">+</button>
-          <button id="btn-rename-script" class="script-action-btn" title="Rename">ab</button>
-          <button id="btn-delete-script" class="script-action-btn" title="Delete">&#128465;</button>
-          <span style="width:1px;background:#1a3a2a;margin:0 4px;align-self:stretch;"></span>
           <button id="run-btn">RUN</button>
         </div>
       </div>
