@@ -520,19 +520,35 @@ sports.wager("football", 100, {
       <div class="rm-backdrop"></div>
       <div class="rm-content">
         <div class="rm-header"><span>Research Tree</span><button class="rm-close">&times;</button></div>
-        <div class="rm-body"><canvas id="research-canvas"></canvas></div>
+        <div class="rm-split">
+          <div class="rm-tree-panel"><canvas id="research-canvas"></canvas></div>
+          <div class="rm-detail-panel" id="rm-detail">
+            <div style="color:#446655;padding:20px;text-align:center;font-family:'Lato',sans-serif;">Click a node to view details</div>
+          </div>
+        </div>
       </div>
     `;
     const style = document.createElement('style');
     style.textContent = `
       #research-modal { position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;display:flex;align-items:center;justify-content:center; }
       .rm-backdrop { position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8); }
-      .rm-content { position:relative;width:90%;max-width:900px;height:80%;background:#0a0a18;border:1px solid #1a3a2a;border-radius:8px;display:flex;flex-direction:column;overflow:hidden; }
+      .rm-content { position:relative;width:95%;max-width:1000px;height:85%;background:#0a0a18;border:1px solid #1a3a2a;border-radius:8px;display:flex;flex-direction:column;overflow:hidden; }
       .rm-header { display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#060610;border-bottom:1px solid #1a3a2a;color:#00ff88;font-size:14px;font-weight:bold;letter-spacing:1px; }
       .rm-close { background:none;border:none;color:#668877;font-size:24px;cursor:pointer;font-family:inherit; }
       .rm-close:hover { color:#ff5555; }
-      .rm-body { flex:1;overflow:auto;position:relative; }
+      .rm-split { flex:1;display:flex;overflow:hidden; }
+      .rm-tree-panel { flex:1;overflow:auto;min-width:0; }
+      .rm-detail-panel { width:260px;flex-shrink:0;border-left:1px solid #1a3a2a;overflow-y:auto;background:#0d0d18; }
       #research-canvas { display:block; }
+      .rm-d-header { font-size:18px;margin-bottom:8px; }
+      .rm-d-row { display:flex;justify-content:space-between;font-size:13px;color:#88bbaa;padding:4px 0; }
+      .rm-d-label { color:#446666;font-size:12px;font-family:'Lato',sans-serif;text-transform:uppercase;letter-spacing:1px;margin-top:10px;margin-bottom:4px; }
+      .rm-d-desc { color:#668877;font-size:13px;font-family:'Lato',sans-serif;line-height:1.5; }
+      .rm-d-prereq { font-size:12px;color:#668877;padding:2px 0; }
+      .rm-unlock-btn { display:block;width:100%;margin-top:12px;padding:10px;background:#0a2a18;border:1px solid #00ff88;border-radius:4px;color:#00ff88;font-family:inherit;font-size:14px;font-weight:bold;cursor:pointer;text-align:center;transition:background 0.15s; }
+      .rm-unlock-btn:hover { background:#0f3a22; }
+      .rm-unlock-btn:disabled { opacity:0.4;cursor:not-allowed;border-color:#1a3a2a;color:#446655; }
+      @media (max-width:640px) { .rm-detail-panel { width:100%;border-left:none;border-top:1px solid #1a3a2a;max-height:40%; } .rm-split { flex-direction:column; } }
     `;
     modal.appendChild(style);
     document.body.appendChild(modal);
@@ -577,55 +593,138 @@ sports.wager("football", 100, {
     canvas.width = totalW * dpr; canvas.height = totalH * dpr;
     canvas.style.width = totalW + 'px'; canvas.style.height = totalH + 'px';
     ctx.scale(dpr, dpr);
-    ctx.fillStyle = '#0a0a18'; ctx.fillRect(0, 0, totalW, totalH);
 
-    // Era labels
-    curY = padY; ctx.font = '12px IBM Plex Mono, Courier New';
-    for (const era of eraOrder) {
-      const group = eraGroups.get(era) ?? [];
-      if (group.length === 0) continue;
-      ctx.fillStyle = '#334466';
-      ctx.fillText((eraLabels[era] ?? era).toUpperCase(), padX, curY + 12);
-      const maxY = Math.max(...group.map(n => (positions.get(n.id)?.y ?? 0) + nodeH));
-      curY = maxY + eraGap;
-    }
+    let selectedId: string | null = null;
 
-    // Connections
-    for (const node of nodes) {
-      const to = positions.get(node.id); if (!to) continue;
-      for (const preId of node.prerequisites) {
-        const from = positions.get(preId); if (!from) continue;
-        ctx.strokeStyle = node.researched ? '#00ff8844' : node.unlocked ? '#33665544' : '#1a2a2244';
-        ctx.lineWidth = 2; ctx.beginPath();
-        ctx.moveTo(from.x + nodeW / 2, from.y + nodeH);
-        ctx.lineTo(to.x + nodeW / 2, to.y); ctx.stroke();
+    const draw = () => {
+      ctx.fillStyle = '#0a0a18'; ctx.fillRect(0, 0, totalW, totalH);
+
+      // Era labels
+      let ey = padY; ctx.font = '12px IBM Plex Mono, Courier New';
+      for (const era of eraOrder) {
+        const group = eraGroups.get(era) ?? [];
+        if (group.length === 0) continue;
+        ctx.fillStyle = '#334466';
+        ctx.fillText((eraLabels[era] ?? era).toUpperCase(), padX, ey + 12);
+        const maxY = Math.max(...group.map(n => (positions.get(n.id)?.y ?? 0) + nodeH));
+        ey = maxY + eraGap;
       }
-    }
 
-    // Nodes
-    for (const node of nodes) {
-      const pos = positions.get(node.id); if (!pos) continue;
-      ctx.fillStyle = node.researched ? '#0a2a18' : node.unlocked ? '#0a1a22' : '#0a0a12';
-      ctx.strokeStyle = node.researched ? '#00ff88' : node.unlocked ? '#336655' : '#1a2a22';
-      ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(pos.x, pos.y, nodeW, nodeH, 4); ctx.fill(); ctx.stroke();
-      // Icon
-      ctx.font = '16px sans-serif';
-      ctx.fillStyle = node.researched ? '#00ff88' : node.unlocked ? '#88bbaa' : '#334455';
-      ctx.fillText(node.icon, pos.x + 6, pos.y + 18);
-      // Name
-      ctx.font = 'bold 12px IBM Plex Mono, Courier New';
-      ctx.fillText(node.name, pos.x + 26, pos.y + 16, nodeW - 34);
-      ctx.font = '12px IBM Plex Mono, Courier New';
-      if (node.researched) { ctx.fillStyle = '#006633'; ctx.fillText('[DONE]', pos.x + 8, pos.y + 32); }
-      else if (node.unlocked) {
-        ctx.fillStyle = '#aa88ff'; ctx.fillText(`${node.creditsCost} credits`, pos.x + 8, pos.y + 32);
-        ctx.fillStyle = '#6688ff'; ctx.fillText(`+${node.yearAdvance}yr`, pos.x + 100, pos.y + 32);
-      } else { ctx.fillStyle = '#222233'; ctx.fillText('[LOCKED]', pos.x + 8, pos.y + 32); }
-      ctx.fillStyle = node.researched ? '#336655' : node.unlocked ? '#446655' : '#1a2a22';
-      ctx.font = '12px IBM Plex Mono, Courier New';
-      const desc = node.description.length > 30 ? node.description.slice(0, 28) + '...' : node.description;
-      ctx.fillText(desc, pos.x + 8, pos.y + 48, nodeW - 16);
-    }
+      // Connections
+      for (const node of nodes) {
+        const to = positions.get(node.id); if (!to) continue;
+        for (const preId of node.prerequisites) {
+          const from = positions.get(preId); if (!from) continue;
+          ctx.strokeStyle = node.researched ? '#00ff8844' : node.unlocked ? '#33665544' : '#1a2a2244';
+          ctx.lineWidth = 2; ctx.beginPath();
+          ctx.moveTo(from.x + nodeW / 2, from.y + nodeH);
+          ctx.lineTo(to.x + nodeW / 2, to.y); ctx.stroke();
+        }
+      }
+
+      // Nodes
+      for (const node of nodes) {
+        const pos = positions.get(node.id); if (!pos) continue;
+        const isSelected = node.id === selectedId;
+        ctx.fillStyle = node.researched ? '#0a2a18' : node.unlocked ? '#0a1a22' : '#0a0a12';
+        ctx.strokeStyle = isSelected ? '#ffffff' : node.researched ? '#00ff88' : node.unlocked ? '#336655' : '#1a2a22';
+        ctx.lineWidth = isSelected ? 2.5 : 1.5;
+        ctx.beginPath(); ctx.roundRect(pos.x, pos.y, nodeW, nodeH, 4); ctx.fill(); ctx.stroke();
+        ctx.font = '16px sans-serif';
+        ctx.fillStyle = node.researched ? '#00ff88' : node.unlocked ? '#88bbaa' : '#334455';
+        ctx.fillText(node.icon, pos.x + 6, pos.y + 18);
+        ctx.font = 'bold 12px IBM Plex Mono, Courier New';
+        ctx.fillText(node.name, pos.x + 26, pos.y + 16, nodeW - 34);
+        ctx.font = '12px IBM Plex Mono, Courier New';
+        if (node.researched) { ctx.fillStyle = '#006633'; ctx.fillText('[DONE]', pos.x + 8, pos.y + 32); }
+        else if (node.unlocked) {
+          ctx.fillStyle = '#aa88ff'; ctx.fillText(`${node.creditsCost} credits`, pos.x + 8, pos.y + 32);
+          ctx.fillStyle = '#6688ff'; ctx.fillText(`+${node.yearAdvance}yr`, pos.x + 100, pos.y + 32);
+        } else { ctx.fillStyle = '#222233'; ctx.fillText('[LOCKED]', pos.x + 8, pos.y + 32); }
+        ctx.fillStyle = node.researched ? '#336655' : node.unlocked ? '#446655' : '#1a2a22';
+        ctx.font = '12px IBM Plex Mono, Courier New';
+        const desc = node.description.length > 30 ? node.description.slice(0, 28) + '...' : node.description;
+        ctx.fillText(desc, pos.x + 8, pos.y + 48, nodeW - 16);
+      }
+    };
+
+    const showDetail = (nodeId: string) => {
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) return;
+      selectedId = nodeId;
+      draw();
+
+      const detailEl = modal.querySelector('#rm-detail')!;
+      const prereqNames = node.prerequisites.map(pid => {
+        const p = nodes.find(n => n.id === pid);
+        return p ? `${p.icon} ${p.name}${p.researched ? ' \u2713' : ''}` : pid;
+      });
+
+      const statusColor = node.researched ? '#00ff88' : node.unlocked ? '#ffaa22' : '#ff4444';
+      const statusText = node.researched ? 'Researched' : node.unlocked ? 'Available' : 'Locked';
+      const canAfford = s.researchCredits >= node.creditsCost;
+
+      let unlockBtn = '';
+      if (!node.researched && node.unlocked) {
+        unlockBtn = `<button class="rm-unlock-btn" id="rm-do-unlock" ${canAfford ? '' : 'disabled'}>
+          ${canAfford ? `\u{1F513} Unlock Research (${node.creditsCost} credits)` : `Need ${node.creditsCost} credits (have ${s.researchCredits})`}
+        </button>`;
+      }
+
+      detailEl.innerHTML = `<div style="padding:16px;">
+        <div class="rm-d-header" style="color:${node.researched ? '#00ff88' : '#88bbaa'};">${node.icon} ${node.name}</div>
+        <div class="rm-d-row"><span style="color:${statusColor};">${statusText}</span><span style="color:#446666;">${node.era.toUpperCase()}</span></div>
+        <div class="rm-d-label">Description</div>
+        <div class="rm-d-desc">${node.description}</div>
+        <div class="rm-d-label">Details</div>
+        <div class="rm-d-row"><span>Cost</span><span style="color:#aa88ff;">${node.creditsCost} credits</span></div>
+        <div class="rm-d-row"><span>Time Advance</span><span style="color:#6688ff;">+${node.yearAdvance} years</span></div>
+        ${prereqNames.length > 0 ? `
+          <div class="rm-d-label">Prerequisites</div>
+          ${prereqNames.map(p => `<div class="rm-d-prereq">${p}</div>`).join('')}
+        ` : '<div class="rm-d-label" style="color:#336655;">No prerequisites</div>'}
+        ${unlockBtn}
+      </div>`;
+
+      const unlockBtnEl = detailEl.querySelector('#rm-do-unlock');
+      if (unlockBtnEl) {
+        unlockBtnEl.addEventListener('click', () => {
+          if (s.researchCredits < node.creditsCost) return;
+          s.researchCredits -= node.creditsCost;
+          node.researched = true;
+          s.newsFeed.onResearchCompleted(node);
+          s.advanceYear(node.yearAdvance);
+          for (const other of s.researchTree) {
+            if (!other.unlocked && other.prerequisites.every(p => s.researchTree.find(n2 => n2.id === p)?.researched)) {
+              other.unlocked = true;
+            }
+          }
+          this.console.appendSystem(`Researched: ${node.name}!`);
+          this.console.appendLog(node.description);
+          this.console.appendSystem(`${node.yearAdvance} years pass... Now year ${s.year}. Era: ${s.getEraName()}`);
+          draw();
+          showDetail(nodeId); // refresh detail panel
+        });
+      }
+    };
+
+    // Click handler
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * (totalW / rect.width);
+      const my = (e.clientY - rect.top) * (totalH / rect.height);
+
+      for (const node of nodes) {
+        const pos = positions.get(node.id);
+        if (!pos) continue;
+        if (mx >= pos.x && mx <= pos.x + nodeW && my >= pos.y && my <= pos.y + nodeH) {
+          showDetail(node.id);
+          return;
+        }
+      }
+    });
+
+    draw();
   }
 
   update(): void {

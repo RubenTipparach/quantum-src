@@ -179,7 +179,7 @@ export class StockMarket {
   }
 
   /** Serialize mutable state for saving */
-  serialize(): { prices: Record<string, number>; momentum: Record<string, number>; candles: Record<string, Candle[]> } {
+  serialize(): { prices: Record<string, number>; momentum: Record<string, number>; candles: Record<string, Candle[]>; selectedSymbol: string } {
     const prices: Record<string, number> = {};
     const momentum: Record<string, number> = {};
     const candles: Record<string, Candle[]> = {};
@@ -188,11 +188,11 @@ export class StockMarket {
       momentum[s.symbol] = s.momentum;
       candles[s.symbol] = s.candles;
     }
-    return { prices, momentum, candles };
+    return { prices, momentum, candles, selectedSymbol: this.selectedSymbol };
   }
 
   /** Restore mutable state from save */
-  deserialize(data: { prices?: Record<string, number>; momentum?: Record<string, number>; candles?: Record<string, Candle[]> }): void {
+  deserialize(data: { prices?: Record<string, number>; momentum?: Record<string, number>; candles?: Record<string, Candle[]>; selectedSymbol?: string }): void {
     if (!data) return;
     for (const s of this.stocks) {
       const p = data.prices?.[s.symbol];
@@ -202,5 +202,6 @@ export class StockMarket {
       if (m !== undefined) s.momentum = m;
       if (c) s.candles = c;
     }
+    if (data.selectedSymbol) this.selectedSymbol = data.selectedSymbol;
   }
 }
