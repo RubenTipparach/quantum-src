@@ -82,17 +82,21 @@ export class Sidebar {
         return;
       }
 
-      // Docs: clickable code snippets — insert into editor
-      const docExample = target.closest('.docs-example') as HTMLElement | null;
-      if (docExample && this.onInsertCode) {
+      // Docs: paste button inserts code snippet into editor
+      const insertBtn = target.closest('.docs-insert-btn') as HTMLElement | null;
+      if (insertBtn && this.onInsertCode) {
         e.preventDefault();
-        this.onInsertCode(docExample.textContent ?? '');
+        const pre = insertBtn.previousElementSibling as HTMLElement | null;
+        if (pre?.classList.contains('docs-example')) {
+          this.onInsertCode(pre.textContent ?? '');
+        }
         return;
       }
+      // Docs: clickable function signatures
       const docFnCode = target.closest('.docs-fn > code') as HTMLElement | null;
       if (docFnCode && this.onInsertCode) {
         e.preventDefault();
-        this.onInsertCode(docFnCode.textContent ?? '');
+        this.onInsertCode(docFnCode.textContent?.replace(/\s*\u229E$/, '') ?? '');
         return;
       }
 
@@ -325,7 +329,7 @@ export class Sidebar {
             <div class="docs-fn"><code>sys.compute()</code> <span class="docs-ret">string</span> <p>Hardware description.</p></div>
             <pre class="docs-example">print("Year " + sys.year() + " — " + sys.era())
 print("Funds: $" + sys.funds())
-print("Compute: " + sys.compute())</pre>
+print("Compute: " + sys.compute())</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
           </div>
 
           <div class="docs-group">
@@ -334,15 +338,15 @@ print("Compute: " + sys.compute())</pre>
             <pre class="docs-example">let stocks = market.scan()
 for (let s of stocks) {
   print(s.symbol + " [" + s.sector + "] $" + s.price)
-}</pre>
+}</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
             <div class="docs-fn"><code>market.price(symbol)</code> <span class="docs-ret">number</span> <p>Quick price lookup for one ticker.</p></div>
             <pre class="docs-example">let p = market.price("CPUX")
-if (p < 10) market.buy("CPUX", 5)</pre>
+if (p < 10) market.buy("CPUX", 5)</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
             <div class="docs-fn"><code>market.buy(symbol, qty)</code> <span class="docs-ret">string</span> <p>Acquire shares. Deducts from funds.</p></div>
             <div class="docs-fn"><code>market.sell(symbol, qty)</code> <span class="docs-ret">string</span> <p>Liquidate shares. Adds to funds.</p></div>
             <div class="docs-fn"><code>market.holdings()</code> <span class="docs-ret">object</span> <p>Current positions. Keys = symbols, values = qty.</p></div>
             <pre class="docs-example">let h = market.holdings()
-// { CPUX: 10, ROBO: 5 }</pre>
+// { CPUX: 10, ROBO: 5 }</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
             <div class="docs-fn"><code>market.feed()</code> <span class="docs-ret">array</span> <p>Live news feed with per-stock impact.</p></div>
             <pre class="docs-example">let news = market.feed()
 for (let n of news) {
@@ -352,7 +356,7 @@ for (let n of news) {
   for (let sym in n.stockImpacts) {
     print("  " + sym + ": $" + n.stockImpacts[sym] + "/tick")
   }
-}</pre>
+}</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
           </div>
 
           <div class="docs-group">
@@ -361,11 +365,11 @@ for (let n of news) {
             <pre class="docs-example">let lg = sports.leagues()
 for (let l of lg) {
   print(l.name + " S" + l.season + " [" + l.phase + "]")
-}</pre>
+}</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
             <div class="docs-fn"><code>sports.roster(leagueId)</code> <span class="docs-ret">array</span> <p>16 teams with id, name, rating, seed, wins, losses.</p></div>
             <pre class="docs-example">let teams = sports.roster("football")
 teams.sort((a, b) => b.rating - a.rating)
-print("Top: " + teams[0].name + " (" + teams[0].rating + ")")</pre>
+print("Top: " + teams[0].name + " (" + teams[0].rating + ")")</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
             <div class="docs-fn"><code>sports.bracket(leagueId)</code> <span class="docs-ret">array</span> <p>Bracket rounds with match results (team1, team2, winner, score).</p></div>
             <div class="docs-fn"><code>sports.wager(leagueId, amount, picks)</code> <span class="docs-ret">string</span> <p>Place bracket bets. Amount is per-round. Locked once placed.</p></div>
             <div class="docs-table">
@@ -382,7 +386,7 @@ sports.wager("football", 100, {
   round1: [t[0].id, t[7].id, t[4].id, t[3].id,
            t[5].id, t[2].id, t[6].id, t[1].id],
   round4: [t[0].id]
-})</pre>
+})</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
           </div>
 
           <div class="docs-group">
