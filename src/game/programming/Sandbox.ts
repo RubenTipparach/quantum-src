@@ -33,8 +33,7 @@ function instrumentCode(code: string): string {
     const lineNum = i + 1;
     const trimmed = line.trim();
 
-    if (trimmed === '') return `__tick(${lineNum});`;
-    if (trimmed.startsWith('//')) return `__tick(${lineNum}); ${line}`;
+    if (trimmed === '' || trimmed.startsWith('//')) return line;
 
     // Don't tick continuation lines
     if (CONTINUATION_RE.test(trimmed)) return line;
