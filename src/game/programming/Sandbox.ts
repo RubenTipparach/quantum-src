@@ -81,7 +81,7 @@ export class Sandbox {
     }
 
     this.rebuildContext(state);
-    this.injectTracing(this.ctx!);
+    this.injectTracing(this.ctx!, state);
 
     const instrumented = instrumentCode(code);
     const result = this.ctx!.evalCode(instrumented, '<user>');
@@ -116,11 +116,16 @@ export class Sandbox {
     };
   }
 
-  private injectTracing(ctx: QuickJSContext): void {
+  private injectTracing(ctx: QuickJSContext, state: GameState): void {
     const tickFn = ctx.newFunction('__tick', (lineHandle) => {
       if (this.hitStepLimit) return;
       const line = ctx.dump(lineHandle) as number;
       this.executionTrace.push(line);
+
+      // Advance the market simulation between each line of code
+      // so prices/news react in real time during execution
+      state.newsFeed.tick();
+      state.stockMarket.tick();
 
       if (this.executionTrace.length >= MAX_STEPS) {
         this.hitStepLimit = true;
