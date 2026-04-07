@@ -247,6 +247,7 @@ export class Sidebar {
     // Group missions by era
     const eras = [
       { key: 'dawn', label: 'Dawn of Computing', color: '#88ccaa' },
+      { key: 'science', label: 'Scientific Research', color: '#44bbff' },
       { key: 'crypto', label: 'Crypto Era', color: '#ffaa44' },
       { key: 'quantum', label: 'Quantum Era', color: '#aa88ff' },
     ];
@@ -256,7 +257,13 @@ export class Sidebar {
       const prereqsMet = m.prerequisites.every(
         pid => missions.find(m2 => m2.id === pid)?.completed
       );
-      return prereqsMet ? 'available' : 'locked';
+      if (!prereqsMet) return 'locked';
+      if (m.requiredResearch) {
+        const node = this.state.researchTree.find(n => n.id === m.requiredResearch);
+        if (!node?.researched) return 'locked';
+      }
+      if (m.minYear && this.state.year < m.minYear) return 'locked';
+      return 'available';
     };
 
     const statusIcon = (status: string) => {
@@ -287,8 +294,14 @@ export class Sidebar {
           const pm = missions.find(m2 => m2.id === pid);
           return pm ? pm.name : pid;
         });
-        const prereqText = prereqNames.length > 0
-          ? `<div style="color:#556677;font-size:9px;margin-top:2px;">Requires: ${prereqNames.join(', ')}</div>`
+        const reqs: string[] = [...prereqNames];
+        if (m.requiredResearch) {
+          const rn = this.state.researchTree.find(n => n.id === m.requiredResearch);
+          reqs.push(rn ? `${rn.name} research` : `${m.requiredResearch} research`);
+        }
+        if (m.minYear) reqs.push(`Year ${m.minYear}+`);
+        const prereqText = reqs.length > 0
+          ? `<div style="color:#556677;font-size:9px;margin-top:2px;">Requires: ${reqs.join(', ')}</div>`
           : '';
         const rewardText = `<span style="color:#aa88ff;font-size:10px;">${m.researchCredits} cr</span>`
           + (m.moneyReward > 0 ? ` <span style="color:#44dd88;font-size:10px;">+$${m.moneyReward.toLocaleString()}</span>` : '');
@@ -359,14 +372,91 @@ export class Sidebar {
     });
   }
 
+  private highlightJS(code: string): string {
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Tokenize to avoid highlighting inside strings/comments
+    const tokens: { type: string; text: string }[] = [];
+    let i = 0;
+    while (i < code.length) {
+      // Single-line comment
+      if (code[i] === '/' && code[i + 1] === '/') {
+        const end = code.indexOf('\n', i);
+        const slice = end === -1 ? code.slice(i) : code.slice(i, end);
+        tokens.push({ type: 'comment', text: slice });
+        i += slice.length;
+        continue;
+      }
+      // Multi-line comment
+      if (code[i] === '/' && code[i + 1] === '*') {
+        const end = code.indexOf('*/', i + 2);
+        const slice = end === -1 ? code.slice(i) : code.slice(i, end + 2);
+        tokens.push({ type: 'comment', text: slice });
+        i += slice.length;
+        continue;
+      }
+      // String (double/single/backtick)
+      if (code[i] === '"' || code[i] === "'" || code[i] === '`') {
+        const q = code[i]!;
+        let j = i + 1;
+        while (j < code.length && code[j] !== q) {
+          if (code[j] === '\\') j++;
+          j++;
+        }
+        tokens.push({ type: 'string', text: code.slice(i, j + 1) });
+        i = j + 1;
+        continue;
+      }
+      // Number
+      if (/\d/.test(code[i]!) && (i === 0 || /[^a-zA-Z_$]/.test(code[i - 1]!))) {
+        let j = i;
+        while (j < code.length && /[\d.xa-fA-F]/.test(code[j]!)) j++;
+        tokens.push({ type: 'number', text: code.slice(i, j) });
+        i = j;
+        continue;
+      }
+      // Word (identifier/keyword)
+      if (/[a-zA-Z_$]/.test(code[i]!)) {
+        let j = i;
+        while (j < code.length && /[a-zA-Z0-9_$]/.test(code[j]!)) j++;
+        tokens.push({ type: 'word', text: code.slice(i, j) });
+        i = j;
+        continue;
+      }
+      // Other
+      tokens.push({ type: 'other', text: code[i]! });
+      i++;
+    }
+
+    const keywords = new Set(['let', 'const', 'var', 'if', 'else', 'for', 'while', 'return', 'function', 'new', 'true', 'false', 'null', 'undefined', 'of', 'in', 'break', 'continue', 'switch', 'case', 'default']);
+    const apis = new Set(['print', 'console', 'market', 'sys', 'sports', 'seti', 'Math']);
+
+    return tokens.map(t => {
+      const e = esc(t.text);
+      switch (t.type) {
+        case 'comment': return `<span style="color:#556677;font-style:italic;">${e}</span>`;
+        case 'string': return `<span style="color:#e6c07b;">${e}</span>`;
+        case 'number': return `<span style="color:#d19a66;">${e}</span>`;
+        case 'word':
+          if (keywords.has(t.text)) return `<span style="color:#c678dd;">${e}</span>`;
+          if (apis.has(t.text)) return `<span style="color:#61afef;">${e}</span>`;
+          return `<span style="color:#abb2bf;">${e}</span>`;
+        default: return `<span style="color:#888;">${e}</span>`;
+      }
+    }).join('');
+  }
+
   private showMissionCodeModal(mission: Mission): void {
     document.getElementById('mission-code-modal')?.remove();
 
     const modal = document.createElement('div');
     modal.id = 'mission-code-modal';
 
-    const escaped = mission.savedCode!
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const highlighted = this.highlightJS(mission.savedCode!);
+
+    // Line numbers
+    const lineCount = mission.savedCode!.split('\n').length;
+    const lineNums = Array.from({ length: lineCount }, (_, i) => `<span style="color:#334455;">${i + 1}</span>`).join('\n');
 
     modal.innerHTML = `
       <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
@@ -379,7 +469,10 @@ export class Sidebar {
             <button class="mc-close" style="background:none;border:none;color:#668877;font-size:20px;cursor:pointer;padding:0 4px;">&times;</button>
           </div>
           <div style="padding:12px 16px;overflow-y:auto;flex:1;">
-            <pre style="background:#060e18;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin:0;color:#88ccaa;font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;overflow-x:auto;">${escaped}</pre>
+            <div style="background:#060e18;border:1px solid #1a2a3a;border-radius:4px;padding:12px;display:flex;gap:12px;font-family:monospace;font-size:12px;line-height:1.5;overflow-x:auto;">
+              <pre style="margin:0;text-align:right;user-select:none;min-width:20px;">${lineNums}</pre>
+              <pre style="margin:0;flex:1;white-space:pre-wrap;word-break:break-all;">${highlighted}</pre>
+            </div>
           </div>
           <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;">
             <button class="mc-load" style="background:#1a3a2a;border:1px solid #44dd8855;color:#44dd88;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load into Editor</button>
