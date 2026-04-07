@@ -55,6 +55,10 @@ export class GameEngine {
       this.editor.insertAtCursor(code);
     });
 
+    this.sidebar.setOnGetCode(() => {
+      return this.editor.getCode();
+    });
+
     this.runBtn = document.getElementById('run-btn') as HTMLButtonElement;
     this.runBtn.addEventListener('click', () => {
       if (this.executing) {
@@ -235,6 +239,12 @@ export class GameEngine {
         for (const m of completed) {
           this.consoleOutput.appendSystem(`MISSION COMPLETE: ${m.name}!`);
           this.consoleOutput.appendLog(`+${m.researchCredits} research credits` + (m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : ''));
+          // Save the code that completed this mission
+          if (!m.savedCode) {
+            m.savedCode = code;
+            this.gameState.save();
+          }
+          this.showMissionToast(m.name, m.researchCredits, m.moneyReward);
         }
 
         this.runBtn.textContent = 'RUN';
@@ -380,5 +390,76 @@ export class GameEngine {
     modal.querySelector('.nm-backdrop')!.addEventListener('click', () => modal.remove());
     modal.querySelector('.nm-close')!.addEventListener('click', () => modal.remove());
     renderFiles();
+  }
+
+  private showMissionToast(name: string, credits: number, money: number): void {
+    // Confetti burst
+    this.spawnConfetti();
+
+    // Toast popup
+    const toast = document.createElement('div');
+    toast.className = 'mission-toast';
+    const reward = `+${credits} cr` + (money > 0 ? ` +$${money.toLocaleString()}` : '');
+    toast.innerHTML = `
+      <div style="font-size:20px;margin-bottom:4px;">&#127881;</div>
+      <div style="color:#44dd88;font-weight:bold;font-size:14px;">MISSION COMPLETE</div>
+      <div style="color:#ccddcc;font-size:12px;margin:4px 0;">${name}</div>
+      <div style="color:#aa88ff;font-size:11px;">${reward}</div>
+    `;
+    toast.style.cssText = `
+      position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #0c1824ee, #1a2a3aee);
+      border: 1px solid #44dd8866; border-radius: 12px;
+      padding: 16px 32px; text-align: center; z-index: 10000;
+      box-shadow: 0 0 30px #44dd8833, 0 8px 32px rgba(0,0,0,0.5);
+      animation: toast-in 0.4s ease-out, toast-out 0.5s ease-in 2.5s forwards;
+      pointer-events: none;
+    `;
+
+    // Inject animation keyframes if not already present
+    if (!document.getElementById('mission-toast-style')) {
+      const style = document.createElement('style');
+      style.id = 'mission-toast-style';
+      style.textContent = `
+        @keyframes toast-in { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+        @keyframes toast-out { from { opacity:1; } to { opacity:0; transform:translateX(-50%) translateY(-20px); } }
+        @keyframes confetti-fall { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(100vh) rotate(720deg); opacity:0; } }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3200);
+  }
+
+  private spawnConfetti(): void {
+    const colors = ['#44dd88', '#aa88ff', '#ffcc44', '#ff6688', '#44bbff', '#ff8844'];
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;';
+
+    for (let i = 0; i < 60; i++) {
+      const piece = document.createElement('div');
+      const color = colors[Math.floor(Math.random() * colors.length)]!;
+      const left = Math.random() * 100;
+      const delay = Math.random() * 0.8;
+      const duration = 1.5 + Math.random() * 1.5;
+      const size = 4 + Math.random() * 6;
+      const shape = Math.random() > 0.5 ? '50%' : '0';
+      piece.style.cssText = `
+        position:absolute; top:-10px; left:${left}%;
+        width:${size}px; height:${size}px;
+        background:${color}; border-radius:${shape};
+        animation: confetti-fall ${duration}s ease-in ${delay}s forwards;
+        opacity:0;
+      `;
+      // Make it visible after delay
+      piece.style.animationFillMode = 'forwards';
+      piece.style.opacity = '0';
+      piece.style.animation = `confetti-fall ${duration}s ease-in ${delay}s`;
+      container.appendChild(piece);
+    }
+
+    document.body.appendChild(container);
+    setTimeout(() => container.remove(), 4000);
   }
 }

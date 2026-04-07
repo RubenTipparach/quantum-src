@@ -64,6 +64,18 @@ export function createResearchTree(): ResearchNode[] {
       yearAdvance: 3,
     },
     {
+      id: 'seti_program',
+      name: 'SETI Program',
+      icon: '\u{1F4E1}',
+      description: 'Join the Search for Extraterrestrial Intelligence. Scan nearby stars for anomalous signals.',
+      creditsCost: 12,
+      era: 'dawn',
+      prerequisites: ['remote_code_exec'],
+      unlocked: false,
+      researched: false,
+      yearAdvance: 2,
+    },
+    {
       id: 'dual_core_cpu',
       name: 'Dual-Core CPU',
       icon: '\u{2699}',

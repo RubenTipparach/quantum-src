@@ -10,6 +10,7 @@ export class Sidebar {
   private prevPrices: Map<string, number> = new Map();
   private onLoadMission: ((mission: Mission) => void) | null = null;
   private onInsertCode: ((code: string) => void) | null = null;
+  private onGetCode: (() => string) | null = null;
   private tooltipEl: HTMLDivElement;
 
   constructor(el: HTMLDivElement, state: GameState, console: ConsoleOutput) {
@@ -100,6 +101,18 @@ export class Sidebar {
         return;
       }
 
+      // Docs TOC links — smooth scroll to section
+      const tocLink = target.closest('.docs-toc-link') as HTMLAnchorElement | null;
+      if (tocLink) {
+        e.preventDefault();
+        const href = tocLink.getAttribute('href');
+        if (href) {
+          const section = this.el.querySelector(href);
+          if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        return;
+      }
+
       // Shop buttons
       const shopBtn = target.closest('.shop-btn') as HTMLElement | null;
       if (shopBtn) {
@@ -126,6 +139,45 @@ export class Sidebar {
           const mission = this.state.missions.find(m => m.id === id);
           if (mission && this.onLoadMission) {
             this.onLoadMission(mission);
+          }
+        }
+        return;
+      }
+
+      // Mission load saved code button
+      const loadCodeBtn = target.closest('.mission-load-code-btn') as HTMLElement | null;
+      if (loadCodeBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = loadCodeBtn.dataset['id'];
+        if (id) {
+          const mission = this.state.missions.find(m => m.id === id);
+          if (mission?.savedCode && this.onLoadMission) {
+            // Create a temporary mission-like load to set code
+            this.onLoadMission({ ...mission, starterCode: mission.savedCode });
+            this.console.appendSystem(`Loaded saved code for: ${mission.name}`);
+          }
+        }
+        return;
+      }
+
+      // Mission save code button
+      const saveCodeBtn = target.closest('.mission-save-code-btn') as HTMLElement | null;
+      if (saveCodeBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = saveCodeBtn.dataset['id'];
+        if (id && this.onGetCode) {
+          const mission = this.state.missions.find(m => m.id === id);
+          if (mission) {
+            const code = this.onGetCode();
+            if (code.trim()) {
+              mission.savedCode = code;
+              this.state.save();
+              this.console.appendSystem(`Saved code snippet to: ${mission.name}`);
+            } else {
+              this.console.appendError('Editor is empty — nothing to save.');
+            }
           }
         }
         return;
@@ -400,6 +452,10 @@ export class Sidebar {
     this.onInsertCode = fn;
   }
 
+  setOnGetCode(fn: () => string): void {
+    this.onGetCode = fn;
+  }
+
   private render(): void {
     this.el.innerHTML = `
       <div class="sb-header">
@@ -481,9 +537,21 @@ export class Sidebar {
       <div class="sb-tab-content" id="stab-docs" style="display:none;">
         <div class="sb-section docs-section">
           <h3>Terminal Reference</h3>
-          <p class="docs-intro">QuantumSrc exposes four modules: <code>sys</code>, <code>market</code>, <code>sports</code>, and <code>seti</code>. All queries return native objects — no parsing needed.</p>
 
-          <div class="docs-group">
+          <div class="docs-toc" style="margin-bottom:10px;padding:8px;background:#0a1220;border:1px solid #1a2a3a;border-radius:4px;">
+            <div style="color:#668877;font-size:10px;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Index</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px 8px;">
+              <a class="docs-toc-link" href="#docs-sys" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">sys</a>
+              <a class="docs-toc-link" href="#docs-market" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">market</a>
+              <a class="docs-toc-link" href="#docs-sports" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">sports</a>
+              <a class="docs-toc-link" href="#docs-seti" style="font-size:11px;cursor:pointer;text-decoration:none;" id="toc-seti">seti</a>
+              <a class="docs-toc-link" href="#docs-output" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">output</a>
+              <a class="docs-toc-link" href="#docs-tickers" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">tickers</a>
+              <a class="docs-toc-link" href="#docs-leagues" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">leagues</a>
+            </div>
+          </div>
+
+          <div class="docs-group" id="docs-sys">
             <h4>sys — System Status</h4>
             <div class="docs-fn"><code>sys.funds()</code> <span class="docs-ret">number</span> <p>Current cash balance.</p></div>
             <div class="docs-fn"><code>sys.year()</code> <span class="docs-ret">number</span> <p>Current in-game year.</p></div>
@@ -496,7 +564,7 @@ print("Funds: $" + sys.funds())
 print("Compute: " + sys.compute())</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
           </div>
 
-          <div class="docs-group">
+          <div class="docs-group" id="docs-market">
             <h4>market — Stock Market</h4>
             <div class="docs-fn"><code>market.scan()</code> <span class="docs-ret">array</span> <p>All stocks with symbol, name, sector, price.</p></div>
             <pre class="docs-example">let stocks = market.scan()
@@ -523,7 +591,7 @@ for (let n of news) {
 }</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
           </div>
 
-          <div class="docs-group">
+          <div class="docs-group" id="docs-sports">
             <h4>sports — League Betting</h4>
             <div class="docs-fn"><code>sports.leagues()</code> <span class="docs-ret">array</span> <p>All leagues with season, phase, timing.</p></div>
             <pre class="docs-example">let lg = sports.leagues()
@@ -553,27 +621,31 @@ sports.wager("football", 100, {
 })</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
           </div>
 
-          <div class="docs-group">
-            <h4>seti — Deep Space Scanning</h4>
-            <div class="docs-fn"><code>seti.catalogue()</code> <span class="docs-ret">array</span> <p>Stellar catalogue of nearby stars with signal readings.</p></div>
-            <pre class="docs-example">let stars = seti.catalogue()
+          <div class="docs-group" id="docs-seti">
+            <h4 id="docs-seti-title">seti — Deep Space Scanning</h4>
+            <div id="docs-seti-lock" style="display:none;color:#445566;font-size:11px;padding:6px 8px;border:1px dashed #334455;border-radius:4px;margin-bottom:6px;">
+              &#128274; Locked — Requires <b>SETI Program</b> research
+            </div>
+            <div id="docs-seti-content">
+              <div class="docs-fn"><code>seti.catalogue()</code> <span class="docs-ret">array</span> <p>Stellar catalogue of nearby stars with signal readings.</p></div>
+              <pre class="docs-example">let stars = seti.catalogue()
 for (let s of stars) {
   if (s.signal > 0.5) print(s.name + " ANOMALY: " + s.signal)
 }</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
-            <div class="docs-fn"><code>seti.scan(name)</code> <span class="docs-ret">object</span> <p>Deep scan a specific star. Returns frequency, pattern, and notes.</p></div>
-            <pre class="docs-example">let data = seti.scan("Epsilon Eridani")
+              <div class="docs-fn"><code>seti.scan(name)</code> <span class="docs-ret">object</span> <p>Deep scan a specific star. Returns frequency, pattern, and notes.</p></div>
+              <pre class="docs-example">let data = seti.scan("Epsilon Eridani")
 print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
-            <div class="docs-fn"><code>seti.transmit(name)</code> <span class="docs-ret">string</span> <p>Build deep space array and send signal. Costs $1,000,000.</p></div>
-            <div class="docs-fn"><code>seti.listen()</code> <span class="docs-ret">object</span> <p>Check for incoming replies from transmitted signals.</p></div>
-            <p style="color:#556677;font-size:10px;margin-top:4px;">Requires: Remote Code Execution research</p>
+              <div class="docs-fn"><code>seti.transmit(name)</code> <span class="docs-ret">string</span> <p>Build deep space array and send signal. Costs $1,000,000.</p></div>
+              <div class="docs-fn"><code>seti.listen()</code> <span class="docs-ret">object</span> <p>Check for incoming replies from transmitted signals.</p></div>
+            </div>
           </div>
 
-          <div class="docs-group">
+          <div class="docs-group" id="docs-output">
             <h4>Output</h4>
             <div class="docs-fn"><code>print(value)</code> <p>Write to the output terminal.</p></div>
           </div>
 
-          <div class="docs-group">
+          <div class="docs-group" id="docs-tickers">
             <h4>Ticker Reference</h4>
             <div class="docs-symbols">
               <span><b>CPUX</b> Tech</span> <span><b>ROBO</b> Tech</span>
@@ -585,7 +657,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
             </div>
           </div>
 
-          <div class="docs-group">
+          <div class="docs-group" id="docs-leagues">
             <h4>League IDs</h4>
             <p class="docs-intro"><code>"football"</code> <code>"basketball"</code> <code>"baseball"</code> <code>"soccer"</code></p>
           </div>
@@ -929,6 +1001,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     this.updateMissions();
     this.updateShop();
     this.updateResearch();
+    this.updateDocs();
   }
 
   private updateStocks(): void {
@@ -1063,7 +1136,14 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     if (done.length > 0) {
       html.push(`<div style="margin-top:4px;">`);
       for (const m of done) {
-        html.push(`<div class="research-done" style="color:#6644aa;">[DONE] ${m.name}</div>`);
+        const hasCode = !!m.savedCode;
+        html.push(`<div class="research-done" style="color:#6644aa;display:flex;justify-content:space-between;align-items:center;">
+          <span>[DONE] ${m.name}</span>
+          <span style="display:flex;gap:4px;">
+            ${hasCode ? `<button class="mission-load-code-btn" data-id="${m.id}" style="background:none;border:1px solid #aa88ff44;color:#aa88ff;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="Load saved code">&#128196;</button>` : ''}
+            <button class="mission-save-code-btn" data-id="${m.id}" style="background:none;border:1px solid #44886644;color:#448866;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="Save current code to this mission">&#128190;</button>
+          </span>
+        </div>`);
       }
       html.push(`</div>`);
     }
@@ -1101,6 +1181,31 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     el.innerHTML = html.join('');
 
     // Click handling is done via event delegation in constructor
+  }
+
+  private updateDocs(): void {
+    const setiUnlocked = this.state.researchTree.find(n => n.id === 'seti_program')?.researched ?? false;
+    const setiGroup = this.el.querySelector('#docs-seti') as HTMLElement | null;
+    const setiContent = this.el.querySelector('#docs-seti-content') as HTMLElement | null;
+    const setiLock = this.el.querySelector('#docs-seti-lock') as HTMLElement | null;
+    const setiTitle = this.el.querySelector('#docs-seti-title') as HTMLElement | null;
+    const tocSeti = this.el.querySelector('#toc-seti') as HTMLElement | null;
+
+    if (setiGroup && setiContent && setiLock && setiTitle) {
+      if (setiUnlocked) {
+        setiGroup.style.opacity = '';
+        setiContent.style.display = '';
+        setiLock.style.display = 'none';
+        setiTitle.style.color = '';
+        if (tocSeti) tocSeti.style.color = '#88ccaa';
+      } else {
+        setiGroup.style.opacity = '0.45';
+        setiContent.style.display = 'none';
+        setiLock.style.display = '';
+        setiTitle.style.color = '#445566';
+        if (tocSeti) tocSeti.style.color = '#445566';
+      }
+    }
   }
 
   private updateResearch(): void {

@@ -21,6 +21,7 @@ interface SaveData {
   research: Record<string, { unlocked: boolean; researched: boolean }>;
   portfolio: Record<string, number>;
   completedMissions: string[];
+  missionCode?: Record<string, string>;
   purchasedShopItems: string[];
   stockMarket?: object;
   newsFeed?: object;
@@ -172,6 +173,7 @@ export class GameState {
       research: {},
       portfolio: {},
       completedMissions: this.missions.filter(m => m.completed).map(m => m.id),
+      missionCode: Object.fromEntries(this.missions.filter(m => m.savedCode).map(m => [m.id, m.savedCode!])),
       purchasedShopItems: this.shop.items.filter(i => i.purchased).map(i => i.id),
       stockMarket: this.stockMarket.serialize(),
       newsFeed: this.newsFeed.serialize(),
@@ -228,6 +230,12 @@ export class GameState {
         for (const id of data.completedMissions) {
           const m = this.missions.find(m2 => m2.id === id);
           if (m) m.completed = true;
+        }
+      }
+      if (data.missionCode) {
+        for (const [id, code] of Object.entries(data.missionCode)) {
+          const m = this.missions.find(m2 => m2.id === id);
+          if (m) m.savedCode = code;
         }
       }
 

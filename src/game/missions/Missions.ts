@@ -18,6 +18,8 @@ export interface Mission {
   requiredResearch?: string;
   /** Minimum in-game year before this mission is available */
   minYear?: number;
+  /** Player-saved code snippet for this mission */
+  savedCode?: string;
   /**
    * Validate the program output. Receives the array of console log texts
    * and the game state. Return true if the mission is satisfied.
@@ -296,7 +298,7 @@ export function createMissions(): Mission[] {
       researchCredits: 8,
       moneyReward: 5000,
       prerequisites: ['sort_stocks'],
-      requiredResearch: 'remote_code_exec',
+      requiredResearch: 'seti_program',
       completed: false,
       validate: (outputs) => {
         return outputs.some(o => o.includes('Epsilon Eridani'));
