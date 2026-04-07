@@ -554,20 +554,47 @@ export class Sidebar {
     modal.id = 'confirm-load-modal';
 
     const hasSavedCode = !!mission.savedCode;
-    const codeLabel = mission.starterCode.split('\n').filter(l => l.trim()).length;
+
+    const starterHighlighted = this.highlightJS(mission.starterCode);
+    const starterLines = mission.starterCode.split('\n');
+    const starterLineNums = starterLines.map((_, i) => `<span style="color:#334455;">${i + 1}</span>`).join('\n');
+
+    let savedHighlighted = '';
+    let savedLineNums = '';
+    if (hasSavedCode) {
+      savedHighlighted = this.highlightJS(mission.savedCode!);
+      const savedLines = mission.savedCode!.split('\n');
+      savedLineNums = savedLines.map((_, i) => `<span style="color:#334455;">${i + 1}</span>`).join('\n');
+    }
+
+    const codePreview = (lineNums: string, highlighted: string) => `
+      <div style="background:#060e18;border:1px solid #1a2a3a;border-radius:4px;padding:10px;display:flex;gap:10px;font-family:monospace;font-size:11px;line-height:1.5;overflow-x:auto;max-height:200px;overflow-y:auto;">
+        <pre style="margin:0;text-align:right;user-select:none;min-width:16px;">${lineNums}</pre>
+        <pre style="margin:0;flex:1;white-space:pre-wrap;word-break:break-all;">${highlighted}</pre>
+      </div>`;
+
+    const starterTab = `<button class="lc-tab active" data-lc-tab="starter" style="background:none;border:none;border-bottom:2px solid #44dd88;color:#44dd88;padding:4px 10px;cursor:pointer;font-size:11px;">Starter Code</button>`;
+    const savedTab = hasSavedCode
+      ? `<button class="lc-tab" data-lc-tab="saved" style="background:none;border:none;border-bottom:2px solid transparent;color:#667788;padding:4px 10px;cursor:pointer;font-size:11px;">Saved Code</button>`
+      : '';
 
     modal.innerHTML = `
       <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
-        <div style="background:#0c1824;border:1px solid #aa88ff44;border-radius:8px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
-          <div style="padding:16px;">
-            <div style="color:#aa88ff;font-weight:bold;font-size:13px;margin-bottom:8px;">Load Code — ${mission.name}</div>
-            <div style="color:#88aabb;font-size:12px;">This will replace whatever is currently in the editor.</div>
-            ${hasSavedCode ? `<div style="color:#668877;font-size:11px;margin-top:6px;">You also have saved code for this mission.</div>` : ''}
+        <div style="background:#0c1824;border:1px solid #aa88ff44;border-radius:8px;max-width:550px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;">
+            <div style="color:#aa88ff;font-weight:bold;font-size:13px;margin-bottom:4px;">Load Code — ${mission.name}</div>
+            <div style="color:#88aabb;font-size:11px;">This will replace whatever is currently in the editor.</div>
           </div>
-          <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+          <div style="padding:8px 16px 0;display:flex;gap:2px;border-bottom:1px solid #1a2a3a;">
+            ${starterTab}${savedTab}
+          </div>
+          <div style="padding:12px 16px;overflow-y:auto;flex:1;">
+            <div id="lc-preview-starter">${codePreview(starterLineNums, starterHighlighted)}</div>
+            ${hasSavedCode ? `<div id="lc-preview-saved" style="display:none;">${codePreview(savedLineNums, savedHighlighted)}</div>` : ''}
+          </div>
+          <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;">
             <button class="lc-cancel" style="background:#1a2a3a;border:1px solid #2a4a6a;color:#668877;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
-            ${hasSavedCode ? `<button class="lc-saved" style="background:#1a2a3a;border:1px solid #aa88ff44;color:#aa88ff;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load Saved Code</button>` : ''}
-            <button class="lc-starter" style="background:#1a2a3a;border:1px solid #44dd8855;color:#44dd88;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load Starter (${codeLabel} lines)</button>
+            <button class="lc-load" style="background:#1a3a2a;border:1px solid #44dd8855;color:#44dd88;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load into Editor</button>
           </div>
         </div>
       </div>
@@ -575,17 +602,39 @@ export class Sidebar {
 
     document.body.appendChild(modal);
 
+    let activeTab = 'starter';
+
+    // Tab switching
+    modal.querySelectorAll('.lc-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const t = (tab as HTMLElement).dataset['lcTab']!;
+        activeTab = t;
+        modal.querySelectorAll('.lc-tab').forEach(tb => {
+          const el = tb as HTMLElement;
+          const isActive = el.dataset['lcTab'] === t;
+          el.style.borderBottomColor = isActive ? '#44dd88' : 'transparent';
+          el.style.color = isActive ? '#44dd88' : '#667788';
+        });
+        const starterEl = modal.querySelector('#lc-preview-starter') as HTMLElement | null;
+        const savedEl = modal.querySelector('#lc-preview-saved') as HTMLElement | null;
+        if (starterEl) starterEl.style.display = t === 'starter' ? '' : 'none';
+        if (savedEl) savedEl.style.display = t === 'saved' ? '' : 'none';
+      });
+    });
+
     modal.querySelector('.lc-cancel')?.addEventListener('click', () => modal.remove());
     modal.querySelector('div')?.addEventListener('click', (e) => {
       if (e.target === e.currentTarget) modal.remove();
     });
-    modal.querySelector('.lc-starter')?.addEventListener('click', () => {
-      if (this.onLoadMissionCode) this.onLoadMissionCode(mission);
-      modal.remove();
-    });
-    modal.querySelector('.lc-saved')?.addEventListener('click', () => {
-      if (this.onLoadMissionCode) this.onLoadMissionCode({ ...mission, starterCode: mission.savedCode! });
-      this.console.appendSystem(`Loaded saved code for: ${mission.name}`);
+    modal.querySelector('.lc-load')?.addEventListener('click', () => {
+      if (this.onLoadMissionCode) {
+        if (activeTab === 'saved' && hasSavedCode) {
+          this.onLoadMissionCode({ ...mission, starterCode: mission.savedCode! });
+          this.console.appendSystem(`Loaded saved code for: ${mission.name}`);
+        } else {
+          this.onLoadMissionCode(mission);
+        }
+      }
       modal.remove();
     });
   }
