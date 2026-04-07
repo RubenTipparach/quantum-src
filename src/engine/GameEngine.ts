@@ -246,12 +246,13 @@ export class GameEngine {
         const allOutputs = trace.outputs.map(o => o.entry.text);
         const readyMissions = this.gameState.checkMissions(allOutputs);
         for (const m of readyMissions) {
-          // Save the code that completed this mission
           if (!m.savedCode) {
             m.savedCode = code;
             this.gameState.save();
           }
-          this.showCollectToast(m);
+        }
+        if (readyMissions.length > 0) {
+          this.showCollectToast(readyMissions);
         }
 
         this.runBtn.textContent = 'RUN';
@@ -399,8 +400,11 @@ export class GameEngine {
     renderFiles();
   }
 
-  /** Show a "ready to collect" notification toast — collect via sidebar */
-  private showCollectToast(mission: import('../game/missions/Missions').Mission): void {
+  /** Show a "ready to collect" notification toast — handles single or multiple missions */
+  private showCollectToast(missions: import('../game/missions/Missions').Mission[]): void {
+    // Remove any existing collect toast
+    document.querySelector('.mission-collect-toast')?.remove();
+
     // Inject animation keyframes if not already present
     if (!document.getElementById('mission-toast-style')) {
       const style = document.createElement('style');
@@ -416,17 +420,21 @@ export class GameEngine {
     const toast = document.createElement('div');
     toast.className = 'mission-collect-toast';
 
-    const reward = `+${mission.researchCredits} cr` + (mission.moneyReward > 0 ? ` +$${mission.moneyReward.toLocaleString()}` : '');
-    const costLine = mission.collectCost
-      ? `<div style="color:#ff8844;font-size:11px;margin-top:2px;">Collection cost: $${mission.collectCost.toLocaleString()}</div>`
-      : '';
+    const count = missions.length;
+    const title = count === 1 ? 'MISSION READY' : `${count} MISSIONS READY`;
+    const listHtml = missions.map(m => {
+      const reward = `+${m.researchCredits} cr` + (m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : '');
+      const cost = m.collectCost ? ` <span style="color:#ff8844;">(costs $${m.collectCost.toLocaleString()})</span>` : '';
+      return `<div style="margin:4px 0;padding:4px 0;${count > 1 ? 'border-bottom:1px solid #1a2a3a22;' : ''}">
+        <div style="color:#ccddcc;font-size:12px;">${m.name}${cost}</div>
+        <div style="color:#aa88ff;font-size:10px;">${reward}</div>
+      </div>`;
+    }).join('');
 
     toast.innerHTML = `
       <div style="font-size:24px;margin-bottom:6px;">&#11088;</div>
-      <div style="color:#ffcc44;font-weight:bold;font-size:14px;">MISSION READY</div>
-      <div style="color:#ccddcc;font-size:12px;margin:4px 0;">${mission.name}</div>
-      <div style="color:#aa88ff;font-size:11px;">${reward}</div>
-      ${costLine}
+      <div style="color:#ffcc44;font-weight:bold;font-size:14px;">${title}</div>
+      ${listHtml}
       <div style="color:#668877;font-size:10px;margin-top:8px;">Collect from the Missions panel</div>
       <button class="toast-dismiss-btn" style="
         margin-top:8px; padding:4px 16px;
@@ -440,6 +448,7 @@ export class GameEngine {
       background: linear-gradient(135deg, #0c1824f0, #1a2a3af0);
       border: 1px solid #ffcc4466; border-radius: 12px;
       padding: 20px 36px; text-align: center; z-index: 10000;
+      max-width: 400px; width: 90%;
       animation: toast-in 0.4s ease-out;
       pointer-events: auto;
     `;
@@ -447,12 +456,13 @@ export class GameEngine {
     document.body.appendChild(toast);
 
     toast.querySelector('.toast-dismiss-btn')?.addEventListener('click', () => toast.remove());
-    // Also click backdrop area to dismiss
     toast.addEventListener('click', (e) => {
       if (e.target === toast) toast.remove();
     });
 
-    this.consoleOutput.appendSystem(`MISSION READY: ${mission.name} — Collect from the Missions panel!`);
+    for (const m of missions) {
+      this.consoleOutput.appendSystem(`MISSION READY: ${m.name} — Collect from the Missions panel!`);
+    }
   }
 
   /** Attempt to collect a mission, show confetti on success or error on fail */

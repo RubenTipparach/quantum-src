@@ -164,6 +164,7 @@ export class GameState {
     mission.completed = true;
     this.researchCredits += mission.researchCredits;
     this.money += mission.moneyReward;
+    this.newsFeed.onMissionCompleted(missionId);
     this.save();
     return { success: true, message: `Collected: ${mission.name}!` };
   }

@@ -211,7 +211,9 @@ const RESEARCH_STOCK_MAP: Record<string, string[]> = {
   basic_trading:          ['CPUX', 'DATA', 'BNKR'],
   market_analysis:        ['DATA', 'CPUX', 'BNKR'],
   overclock:              ['CPUX'],
-  multi_core:             ['CPUX', 'ROBO'],
+  remote_code_exec:       ['CPUX', 'NTWK', 'DATA'],
+  seti_program:           ['QBIT', 'NTWK', 'DATA'],
+  dual_core_cpu:          ['CPUX', 'ROBO'],
   hash_mining:            ['CRYP', 'ENRG', 'NTWK'],
   gpu_compute:            ['CPUX', 'ROBO', 'CRYP'],
   gpu_farm:               ['ENRG', 'PETX', 'CPUX'],
@@ -229,7 +231,9 @@ const RESEARCH_HEADLINES: Record<string, string> = {
   basic_trading:          'Algorithmic trading methods discovered — CompuTech, DataVault, and MegaBank surge',
   market_analysis:        'Breakthrough in market pattern detection — financial sector leads the charge',
   overclock:              'CPU overclocking breakthrough sends CompuTech shares soaring',
-  multi_core:             'Multi-core revolution: CompuTech and AutoMind stocks rally',
+  remote_code_exec:       'Remote code execution achieved — networking and data stocks rally on connectivity boom',
+  seti_program:           'SETI program launched — QuantumLeap and NetLink surge on deep space initiative',
+  dual_core_cpu:          'Dual-core CPU revolution: CompuTech and AutoMind stocks rally',
   hash_mining:            'Crypto mining goes mainstream — CryptoLedger explodes, energy demand soars',
   gpu_compute:            'GPU compute era begins — massive implications for tech and crypto sectors',
   gpu_farm:               'Industrial-scale GPU farms reshape energy markets worldwide',
@@ -241,6 +245,42 @@ const RESEARCH_HEADLINES: Record<string, string> = {
   energy_synthesis:       'Unlimited energy unlocked — PowerGrid parabolic, PetroMax in freefall',
   megastructure_foundation: 'Megastructure engineering feasible — industrial revolution 5.0 begins',
   post_scarcity:          'Post-scarcity protocol activated — the economy will never be the same',
+};
+
+// ────────────────────────────────────────────────────────────
+//  MISSION NEWS EVENTS
+// ────────────────────────────────────────────────────────────
+
+const MISSION_NEWS: Record<string, { headline: string; targets: string[]; impact: [number, number]; duration: [number, number] }> = {
+  // Dawn
+  hello_world:       { headline: 'New programmer enters the market — retail trading expected to rise', targets: [], impact: [0.01, 0.03], duration: [5, 10] },
+  first_buy:         { headline: 'New retail investor places first trade — small-cap optimism grows', targets: [], impact: [0.01, 0.03], duration: [5, 10] },
+  buy_sell:          { headline: 'Day trading activity detected — volatility ticks upward', targets: [], impact: [-0.02, 0.02], duration: [5, 8] },
+
+  // Market
+  read_market:       { headline: 'Market surveillance tools deployed — transparency improves across all sectors', targets: [], impact: [0.02, 0.04], duration: [8, 14] },
+  portfolio_value:   { headline: 'Automated portfolio analysis goes live — institutional confidence grows', targets: ['DATA', 'BNKR'], impact: [0.03, 0.06], duration: [8, 14] },
+  news_trader:       { headline: 'BREAKING: Algorithm detected front-running news events — regulators take notice', targets: ['DATA', 'BNKR'], impact: [-0.03, 0.03], duration: [10, 18] },
+  sector_sweep:      { headline: 'Coordinated sector accumulation detected — market makers adjust spreads', targets: [], impact: [0.02, 0.05], duration: [8, 15] },
+  penny_flipper:     { headline: 'High-frequency penny stock arbitrage raises red flags at SEC', targets: [], impact: [-0.02, 0.02], duration: [6, 12] },
+  pump_dump:         { headline: 'ALERT: Pump-and-dump scheme detected! SEC opens investigation', targets: [], impact: [-0.08, -0.03], duration: [15, 25] },
+  market_crash:      { headline: 'MARKET PANIC: Mass liquidation triggers circuit breakers across exchanges', targets: [], impact: [-0.12, -0.06], duration: [20, 35] },
+  insider_trading:   { headline: 'SCANDAL: Insider trading ring busted — markets reel from confidence crisis', targets: ['BNKR', 'DATA', 'CPUX'], impact: [-0.10, -0.04], duration: [18, 30] },
+
+  // Crypto
+  fibonacci:         { headline: 'Fibonacci-based trading algorithms flood crypto markets', targets: ['CRYP', 'DATA'], impact: [0.02, 0.05], duration: [8, 14] },
+  moving_average:    { headline: 'Moving average crossover strategies go mainstream — volatility drops', targets: [], impact: [0.01, 0.03], duration: [6, 12] },
+  bull_bear:         { headline: 'Aggressive bull/bear strategy moves markets — analysts divided', targets: [], impact: [-0.03, 0.03], duration: [8, 14] },
+  prime_numbers:     { headline: 'Prime number breakthrough improves encryption — crypto sector rallies', targets: ['CRYP', 'NTWK', 'SHLD'], impact: [0.04, 0.08], duration: [10, 18] },
+
+  // Quantum
+  binary_search:     { headline: 'Quantum search optimization demonstrated — QuantumLeap stock explodes', targets: ['QBIT', 'CPUX'], impact: [0.05, 0.10], duration: [12, 20] },
+  encryption_sim:    { headline: 'Caesar cipher cracked in milliseconds — encryption industry scrambles', targets: ['QBIT', 'NTWK', 'SHLD', 'BNKR'], impact: [-0.04, 0.06], duration: [12, 20] },
+
+  // SETI
+  seti_scan:         { headline: 'SETI detects anomalous signal from Epsilon Eridani — scientific community stunned', targets: ['QBIT', 'NTWK', 'DATA'], impact: [0.06, 0.12], duration: [15, 25] },
+  seti_transmit:     { headline: 'Deep space transmission sent to Epsilon Eridani — humanity reaches for the stars', targets: ['QBIT', 'NTWK', 'SHLD'], impact: [0.08, 0.15], duration: [20, 35] },
+  seti_decrypt:      { headline: 'FIRST CONTACT: Alien message decoded — "YOU ARE NOT ALONE" — markets surge worldwide', targets: [], impact: [0.15, 0.25], duration: [30, 50] },
 };
 
 // ────────────────────────────────────────────────────────────
@@ -353,6 +393,21 @@ export class NewsFeed {
       targets: [symbol],
       impact: isBuy ? magnitude : -magnitude,
       duration: Math.floor(randRange(5, 12)),
+    });
+  }
+
+  /** Generate a news event when a mission is collected */
+  onMissionCompleted(missionId: string): void {
+    const data = MISSION_NEWS[missionId];
+    if (!data) return;
+    const [minImpact, maxImpact] = data.impact;
+    const [minDur, maxDur] = data.duration;
+    this.addEvent({
+      headline: data.headline,
+      category: 'market',
+      targets: data.targets,
+      impact: randRange(minImpact, maxImpact),
+      duration: Math.floor(randRange(minDur, maxDur)),
     });
   }
 
