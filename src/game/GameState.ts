@@ -21,6 +21,7 @@ interface SaveData {
   research: Record<string, { unlocked: boolean; researched: boolean }>;
   portfolio: Record<string, number>;
   completedMissions: string[];
+  readyToCollectMissions?: string[];
   missionCode?: Record<string, string>;
   purchasedShopItems: string[];
   stockMarket?: object;
@@ -113,9 +114,9 @@ export class GameState {
     this.save();
   }
 
-  /** Check and complete missions based on program output */
+  /** Check missions and mark as ready to collect (does NOT auto-complete) */
   checkMissions(outputs: string[]): Mission[] {
-    const completed: Mission[] = [];
+    const ready: Mission[] = [];
     const gameRef = {
       money: this.money,
       year: this.year,
@@ -124,33 +125,52 @@ export class GameState {
     };
 
     for (const mission of this.missions) {
-      if (mission.completed) continue;
+      if (mission.completed || mission.readyToCollect) continue;
       if (mission.minYear && this.year < mission.minYear) continue;
       if (mission.requiredResearch) {
         const node = this.researchTree.find(n => n.id === mission.requiredResearch);
         if (!node?.researched) continue;
       }
-      // Check prerequisites
       const prereqsMet = mission.prerequisites.every(
         pid => this.missions.find(m => m.id === pid)?.completed
       );
       if (!prereqsMet) continue;
 
       if (mission.validate(outputs, gameRef)) {
-        mission.completed = true;
-        this.researchCredits += mission.researchCredits;
-        this.money += mission.moneyReward;
-        completed.push(mission);
+        mission.readyToCollect = true;
+        ready.push(mission);
       }
     }
 
-    if (completed.length > 0) this.save();
-    return completed;
+    if (ready.length > 0) this.save();
+    return ready;
+  }
+
+  /** Collect a mission that is ready — awards rewards, deducts collectCost */
+  collectMission(missionId: string): { success: boolean; message: string } {
+    const mission = this.missions.find(m => m.id === missionId);
+    if (!mission) return { success: false, message: 'Mission not found.' };
+    if (mission.completed) return { success: false, message: 'Already collected.' };
+    if (!mission.readyToCollect) return { success: false, message: 'Mission not ready.' };
+
+    if (mission.collectCost && this.money < mission.collectCost) {
+      return { success: false, message: `Not enough funds. Need $${mission.collectCost.toLocaleString()}.` };
+    }
+
+    if (mission.collectCost) {
+      this.money -= mission.collectCost;
+    }
+    mission.readyToCollect = false;
+    mission.completed = true;
+    this.researchCredits += mission.researchCredits;
+    this.money += mission.moneyReward;
+    this.save();
+    return { success: true, message: `Collected: ${mission.name}!` };
   }
 
   getAvailableMissions(): Mission[] {
     return this.missions.filter(m => {
-      if (m.completed) return false;
+      if (m.completed || m.readyToCollect) return false;
       if (m.minYear && this.year < m.minYear) return false;
       if (m.requiredResearch) {
         const node = this.researchTree.find(n => n.id === m.requiredResearch);
@@ -160,6 +180,10 @@ export class GameState {
         pid => this.missions.find(m2 => m2.id === pid)?.completed
       );
     });
+  }
+
+  getReadyToCollectMissions(): Mission[] {
+    return this.missions.filter(m => m.readyToCollect && !m.completed);
   }
 
   save(): void {
@@ -173,6 +197,7 @@ export class GameState {
       research: {},
       portfolio: {},
       completedMissions: this.missions.filter(m => m.completed).map(m => m.id),
+      readyToCollectMissions: this.missions.filter(m => m.readyToCollect).map(m => m.id),
       missionCode: Object.fromEntries(this.missions.filter(m => m.savedCode).map(m => [m.id, m.savedCode!])),
       purchasedShopItems: this.shop.items.filter(i => i.purchased).map(i => i.id),
       stockMarket: this.stockMarket.serialize(),
@@ -230,6 +255,12 @@ export class GameState {
         for (const id of data.completedMissions) {
           const m = this.missions.find(m2 => m2.id === id);
           if (m) m.completed = true;
+        }
+      }
+      if (data.readyToCollectMissions) {
+        for (const id of data.readyToCollectMissions) {
+          const m = this.missions.find(m2 => m2.id === id);
+          if (m) m.readyToCollect = true;
         }
       }
       if (data.missionCode) {

@@ -438,18 +438,11 @@ export class Sandbox {
         self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
         return ctx.newString(entry.text);
       }
-      const cost = 1000000;
-      if (state.money < cost) {
-        const entry: ConsoleEntry = { type: 'log', text: `Insufficient funds. Deep space array costs $1,000,000. Have $${state.money.toLocaleString()}.` };
-        self.consoleBuffer.push(entry);
-        self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
-        return ctx.newString(entry.text);
-      }
-      state.money -= cost;
+      // Mark transmission ready — actual $1M cost is paid when collecting the mission
       state.setiTransmitted = true;
       state.setiTransmitYear = state.year;
       const eta = Math.round(state.year + 10.48 * 2);
-      const entry: ConsoleEntry = { type: 'log', text: `Transmission sent to Epsilon Eridani (10.48 ly). Array cost: $1,000,000. Earliest reply: ~${eta}` };
+      const entry: ConsoleEntry = { type: 'log', text: `Transmission sent to Epsilon Eridani (10.48 ly). Collect mission to fund array ($1,000,000). Earliest reply: ~${eta}` };
       self.consoleBuffer.push(entry);
       self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
       return ctx.newString(entry.text);

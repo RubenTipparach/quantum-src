@@ -11,6 +11,7 @@ export class Sidebar {
   private onLoadMission: ((mission: Mission) => void) | null = null;
   private onInsertCode: ((code: string) => void) | null = null;
   private onGetCode: (() => string) | null = null;
+  private onCollectMission: ((missionId: string) => void) | null = null;
   private tooltipEl: HTMLDivElement;
 
   constructor(el: HTMLDivElement, state: GameState, console: ConsoleOutput) {
@@ -126,6 +127,17 @@ export class Sidebar {
           } else {
             this.console.appendError(result);
           }
+        }
+        return;
+      }
+
+      // Mission collect buttons
+      const collectBtn = target.closest('.mission-collect-btn') as HTMLElement | null;
+      if (collectBtn) {
+        e.preventDefault();
+        const id = collectBtn.dataset['id'];
+        if (id && this.onCollectMission) {
+          this.onCollectMission(id);
         }
         return;
       }
@@ -252,8 +264,9 @@ export class Sidebar {
       { key: 'quantum', label: 'Quantum Era', color: '#aa88ff' },
     ];
 
-    const getMissionStatus = (m: Mission): 'completed' | 'available' | 'locked' => {
+    const getMissionStatus = (m: Mission): 'completed' | 'available' | 'ready' | 'locked' => {
       if (m.completed) return 'completed';
+      if (m.readyToCollect) return 'ready';
       const prereqsMet = m.prerequisites.every(
         pid => missions.find(m2 => m2.id === pid)?.completed
       );
@@ -268,12 +281,14 @@ export class Sidebar {
 
     const statusIcon = (status: string) => {
       if (status === 'completed') return '<span style="color:#44dd88;">&#10003;</span>';
+      if (status === 'ready') return '<span style="color:#ffcc44;">&#11088;</span>';
       if (status === 'available') return '<span style="color:#ffcc44;">&#9679;</span>';
       return '<span style="color:#334455;">&#9632;</span>';
     };
 
     const statusColor = (status: string) => {
       if (status === 'completed') return '#44dd88';
+      if (status === 'ready') return '#ffcc44';
       if (status === 'available') return '#ffcc44';
       return '#445566';
     };
@@ -306,7 +321,7 @@ export class Sidebar {
         const rewardText = `<span style="color:#aa88ff;font-size:10px;">${m.researchCredits} cr</span>`
           + (m.moneyReward > 0 ? ` <span style="color:#44dd88;font-size:10px;">+$${m.moneyReward.toLocaleString()}</span>` : '');
 
-        const isClickable = status === 'available';
+        const isClickable = status === 'available' || status === 'ready';
         const cursor = isClickable ? 'cursor:pointer;' : '';
         const hoverBg = isClickable ? 'background:#1a2a3a;' : '';
         const opacity = status === 'locked' ? 'opacity:0.5;' : '';
@@ -327,6 +342,7 @@ export class Sidebar {
     // Legend
     html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #223344;display:flex;gap:12px;font-size:10px;color:#668877;">
       <span>${statusIcon('completed')} Completed</span>
+      <span>${statusIcon('ready')} Ready</span>
       <span>${statusIcon('available')} Available</span>
       <span>${statusIcon('locked')} Locked</span>
     </div>`;
@@ -363,7 +379,11 @@ export class Sidebar {
         const id = (node as HTMLElement).dataset['missionId'];
         if (id) {
           const mission = missions.find(m => m.id === id);
-          if (mission && this.onLoadMission) {
+          if (!mission) return;
+          if (mission.readyToCollect && this.onCollectMission) {
+            this.onCollectMission(id);
+            modal.remove();
+          } else if (this.onLoadMission) {
             this.onLoadMission(mission);
             modal.remove();
           }
@@ -634,6 +654,10 @@ export class Sidebar {
 
   setOnGetCode(fn: () => string): void {
     this.onGetCode = fn;
+  }
+
+  setOnCollectMission(fn: (missionId: string) => void): void {
+    this.onCollectMission = fn;
   }
 
   private render(): void {
@@ -1301,10 +1325,28 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     const el = this.el.querySelector('#sb-missions');
     if (!el) return;
     const s = this.state;
+    const readyToCollect = s.getReadyToCollectMissions();
     const available = s.getAvailableMissions();
     const done = s.missions.filter(m => m.completed);
     const html: string[] = [];
 
+    // Ready to collect — prominent collect buttons
+    for (const m of readyToCollect) {
+      const costText = m.collectCost ? ` — $${m.collectCost.toLocaleString()}` : '';
+      const canAfford = !m.collectCost || s.money >= m.collectCost;
+      const btnStyle = canAfford
+        ? 'border-color:#ffcc4488;background:linear-gradient(135deg,#1a2a1a,#1a3a2a);'
+        : 'border-color:#ff444444;opacity:0.7;';
+      html.push(`<button class="sidebar-btn mission-collect-btn" data-id="${m.id}" style="${btnStyle}" title="${canAfford ? 'Click to collect!' : `Need $${m.collectCost!.toLocaleString()}`}">
+        <span style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#ffcc44;">&#11088; ${m.name}</span>
+          <span style="color:#44dd88;font-size:10px;font-weight:bold;">COLLECT${costText}</span>
+        </span>
+        <span class="year-advance" style="color:#aa88ff;font-size:9px;">+${m.researchCredits} cr${m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : ''}</span>
+      </button>`);
+    }
+
+    // Available missions
     for (const m of available) {
       html.push(`<button class="sidebar-btn mission-btn" data-id="${m.id}" title="${m.hint}" style="border-color:#aa88ff55;">
         <span style="color:#aa88ff;">${m.name}</span>
@@ -1313,6 +1355,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       </button>`);
     }
 
+    // Completed missions
     if (done.length > 0) {
       html.push(`<div style="margin-top:4px;">`);
       for (const m of done) {
@@ -1328,7 +1371,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       html.push(`</div>`);
     }
 
-    if (available.length === 0 && done.length === 0) {
+    if (readyToCollect.length === 0 && available.length === 0 && done.length === 0) {
       html.push('<div class="stat-row" style="color:#334455;">No missions yet</div>');
     }
 

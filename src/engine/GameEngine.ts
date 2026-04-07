@@ -59,6 +59,10 @@ export class GameEngine {
       return this.editor.getCode();
     });
 
+    this.sidebar.setOnCollectMission((missionId) => {
+      this.doCollectMission(missionId);
+    });
+
     this.runBtn = document.getElementById('run-btn') as HTMLButtonElement;
     this.runBtn.addEventListener('click', () => {
       if (this.executing) {
@@ -235,16 +239,14 @@ export class GameEngine {
         this.consoleOutput.appendSystem('--- DONE ---');
 
         const allOutputs = trace.outputs.map(o => o.entry.text);
-        const completed = this.gameState.checkMissions(allOutputs);
-        for (const m of completed) {
-          this.consoleOutput.appendSystem(`MISSION COMPLETE: ${m.name}!`);
-          this.consoleOutput.appendLog(`+${m.researchCredits} research credits` + (m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : ''));
+        const readyMissions = this.gameState.checkMissions(allOutputs);
+        for (const m of readyMissions) {
           // Save the code that completed this mission
           if (!m.savedCode) {
             m.savedCode = code;
             this.gameState.save();
           }
-          this.showMissionToast(m.name, m.researchCredits, m.moneyReward);
+          this.showCollectToast(m);
         }
 
         this.runBtn.textContent = 'RUN';
@@ -392,30 +394,8 @@ export class GameEngine {
     renderFiles();
   }
 
-  private showMissionToast(name: string, credits: number, money: number): void {
-    // Confetti burst
-    this.spawnConfetti();
-
-    // Toast popup
-    const toast = document.createElement('div');
-    toast.className = 'mission-toast';
-    const reward = `+${credits} cr` + (money > 0 ? ` +$${money.toLocaleString()}` : '');
-    toast.innerHTML = `
-      <div style="font-size:20px;margin-bottom:4px;">&#127881;</div>
-      <div style="color:#44dd88;font-weight:bold;font-size:14px;">MISSION COMPLETE</div>
-      <div style="color:#ccddcc;font-size:12px;margin:4px 0;">${name}</div>
-      <div style="color:#aa88ff;font-size:11px;">${reward}</div>
-    `;
-    toast.style.cssText = `
-      position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
-      background: linear-gradient(135deg, #0c1824ee, #1a2a3aee);
-      border: 1px solid #44dd8866; border-radius: 12px;
-      padding: 16px 32px; text-align: center; z-index: 10000;
-      box-shadow: 0 0 30px #44dd8833, 0 8px 32px rgba(0,0,0,0.5);
-      animation: toast-in 0.4s ease-out, toast-out 0.5s ease-in 2.5s forwards;
-      pointer-events: none;
-    `;
-
+  /** Show a "ready to collect" toast with a Collect button */
+  private showCollectToast(mission: import('../game/missions/Missions').Mission): void {
     // Inject animation keyframes if not already present
     if (!document.getElementById('mission-toast-style')) {
       const style = document.createElement('style');
@@ -424,12 +404,98 @@ export class GameEngine {
         @keyframes toast-in { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
         @keyframes toast-out { from { opacity:1; } to { opacity:0; transform:translateX(-50%) translateY(-20px); } }
         @keyframes confetti-fall { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(100vh) rotate(720deg); opacity:0; } }
+        @keyframes toast-pulse { 0%,100% { box-shadow: 0 0 20px #ffcc4433, 0 8px 32px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 40px #ffcc4466, 0 8px 32px rgba(0,0,0,0.5); } }
       `;
       document.head.appendChild(style);
     }
 
+    const toast = document.createElement('div');
+    toast.className = 'mission-collect-toast';
+
+    const reward = `+${mission.researchCredits} cr` + (mission.moneyReward > 0 ? ` +$${mission.moneyReward.toLocaleString()}` : '');
+    const costLine = mission.collectCost
+      ? `<div style="color:#ff8844;font-size:11px;margin-top:2px;">Cost: $${mission.collectCost.toLocaleString()}</div>`
+      : '';
+
+    toast.innerHTML = `
+      <div style="font-size:24px;margin-bottom:6px;">&#11088;</div>
+      <div style="color:#ffcc44;font-weight:bold;font-size:14px;">MISSION READY</div>
+      <div style="color:#ccddcc;font-size:12px;margin:4px 0;">${mission.name}</div>
+      <div style="color:#aa88ff;font-size:11px;">${reward}</div>
+      ${costLine}
+      <button class="collect-btn" style="
+        margin-top:10px; padding:8px 24px;
+        background: linear-gradient(135deg, #1a3a2a, #2a4a3a);
+        border: 1px solid #44dd88; border-radius: 6px;
+        color: #44dd88; font-size: 13px; font-weight: bold;
+        cursor: pointer; transition: all 0.2s;
+      ">&#127942; Collect!</button>
+    `;
+    toast.style.cssText = `
+      position: fixed; top: 18%; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #0c1824f0, #1a2a3af0);
+      border: 1px solid #ffcc4466; border-radius: 12px;
+      padding: 20px 36px; text-align: center; z-index: 10000;
+      animation: toast-in 0.4s ease-out, toast-pulse 2s ease-in-out 0.4s infinite;
+      pointer-events: auto;
+    `;
+
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3200);
+
+    const collectBtn = toast.querySelector('.collect-btn') as HTMLButtonElement;
+    collectBtn.addEventListener('click', () => {
+      this.doCollectMission(mission.id, toast);
+    });
+
+    // Also allow clicking outside to dismiss (toast stays in sidebar)
+    toast.addEventListener('click', (e) => {
+      if (e.target === toast) toast.remove();
+    });
+  }
+
+  /** Attempt to collect a mission, show confetti on success or error on fail */
+  doCollectMission(missionId: string, toastEl?: HTMLElement): void {
+    const result = this.gameState.collectMission(missionId);
+    if (result.success) {
+      const mission = this.gameState.missions.find(m => m.id === missionId)!;
+      if (toastEl) toastEl.remove();
+
+      // Confetti + completion toast
+      this.spawnConfetti();
+      const completionToast = document.createElement('div');
+      const reward = `+${mission.researchCredits} cr` + (mission.moneyReward > 0 ? ` +$${mission.moneyReward.toLocaleString()}` : '');
+      completionToast.innerHTML = `
+        <div style="font-size:24px;margin-bottom:6px;">&#127881;</div>
+        <div style="color:#44dd88;font-weight:bold;font-size:14px;">MISSION COMPLETE!</div>
+        <div style="color:#ccddcc;font-size:12px;margin:4px 0;">${mission.name}</div>
+        <div style="color:#aa88ff;font-size:11px;">${reward}</div>
+      `;
+      completionToast.style.cssText = `
+        position: fixed; top: 18%; left: 50%; transform: translateX(-50%);
+        background: linear-gradient(135deg, #0c1824ee, #1a2a3aee);
+        border: 1px solid #44dd8866; border-radius: 12px;
+        padding: 20px 36px; text-align: center; z-index: 10000;
+        box-shadow: 0 0 30px #44dd8833, 0 8px 32px rgba(0,0,0,0.5);
+        animation: toast-in 0.4s ease-out, toast-out 0.5s ease-in 2.5s forwards;
+        pointer-events: none;
+      `;
+      document.body.appendChild(completionToast);
+      setTimeout(() => completionToast.remove(), 3200);
+
+      this.consoleOutput.appendSystem(`MISSION COMPLETE: ${mission.name}!`);
+      this.consoleOutput.appendLog(`+${mission.researchCredits} research credits` + (mission.moneyReward > 0 ? ` +$${mission.moneyReward.toLocaleString()}` : ''));
+    } else {
+      this.consoleOutput.appendError(result.message);
+      // Shake the collect button if toast exists
+      if (toastEl) {
+        const btn = toastEl.querySelector('.collect-btn') as HTMLElement;
+        if (btn) {
+          btn.style.borderColor = '#ff4444';
+          btn.style.color = '#ff4444';
+          setTimeout(() => { btn.style.borderColor = '#44dd88'; btn.style.color = '#44dd88'; }, 600);
+        }
+      }
+    }
   }
 
   private spawnConfetti(): void {

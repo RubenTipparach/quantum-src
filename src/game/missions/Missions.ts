@@ -14,10 +14,14 @@ export interface Mission {
   /** IDs of missions that must be completed first */
   prerequisites: string[];
   completed: boolean;
+  /** Mission objective validated — waiting for player to click Collect */
+  readyToCollect: boolean;
   /** Research node ID that must be researched before this mission is available */
   requiredResearch?: string;
   /** Minimum in-game year before this mission is available */
   minYear?: number;
+  /** Money the player must spend to collect this mission */
+  collectCost?: number;
   /** Player-saved code snippet for this mission */
   savedCode?: string;
   /**
@@ -47,7 +51,7 @@ export function createMissions(): Mission[] {
       researchCredits: 1,
       moneyReward: 100,
       prerequisites: [],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => outputs.some(o => o.includes('Hello World')),
     },
     {
@@ -60,7 +64,7 @@ export function createMissions(): Mission[] {
       researchCredits: 2,
       moneyReward: 200,
       prerequisites: ['hello_world'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         // Must print at least 5 lines containing a $ sign (one per stock)
         const priceLines = outputs.filter(o => o.includes('$'));
@@ -77,7 +81,7 @@ export function createMissions(): Mission[] {
       researchCredits: 3,
       moneyReward: 300,
       prerequisites: ['read_market'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs, _gs) => {
         // Output must contain a stock symbol (all caps, 4 chars)
         return outputs.some(o => /^[A-Z]{4}$/.test(o.trim()));
@@ -93,7 +97,7 @@ export function createMissions(): Mission[] {
       researchCredits: 2,
       moneyReward: 0,
       prerequisites: ['hello_world'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => outputs.some(o => o.includes('Acquired')),
     },
     {
@@ -106,7 +110,7 @@ export function createMissions(): Mission[] {
       researchCredits: 3,
       moneyReward: 500,
       prerequisites: ['first_buy'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         const hasBuy = outputs.some(o => o.includes('Acquired'));
         const hasSell = outputs.some(o => o.includes('Sold'));
@@ -123,7 +127,7 @@ export function createMissions(): Mission[] {
       researchCredits: 3,
       moneyReward: 400,
       prerequisites: ['read_market'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         // Must print a number > 0
         return outputs.some(o => {
@@ -142,7 +146,7 @@ export function createMissions(): Mission[] {
       researchCredits: 5,
       moneyReward: 600,
       prerequisites: ['find_cheapest', 'sum_market'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         // Must have at least 5 outputs that are stock symbols
         const syms = outputs.filter(o => /^[A-Z]{4}$/.test(o.trim()));
@@ -161,7 +165,7 @@ export function createMissions(): Mission[] {
       researchCredits: 5,
       moneyReward: 800,
       prerequisites: ['find_cheapest', 'first_buy'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => outputs.some(o => o.includes('Acquired') && o.includes('10')),
     },
     {
@@ -174,7 +178,7 @@ export function createMissions(): Mission[] {
       researchCredits: 5,
       moneyReward: 1000,
       prerequisites: ['buy_sell', 'sum_market'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         return outputs.some(o => {
           const n = parseFloat(o.replace(/[$,]/g, ''));
@@ -194,7 +198,7 @@ export function createMissions(): Mission[] {
       researchCredits: 8,
       moneyReward: 5000,
       prerequisites: ['sort_stocks'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         const expected = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181];
         if (outputs.length < 20) return false;
@@ -214,7 +218,7 @@ export function createMissions(): Mission[] {
       researchCredits: 6,
       moneyReward: 3000,
       prerequisites: ['sort_stocks'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         const valid = outputs.filter(o => /^[A-Z]{4}: (ABOVE|BELOW)$/.test(o.trim()));
         return valid.length >= 5;
@@ -230,7 +234,7 @@ export function createMissions(): Mission[] {
       researchCredits: 8,
       moneyReward: 8000,
       prerequisites: ['buy_cheapest', 'moving_average'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         const hasBuy = outputs.some(o => o.includes('Acquired'));
         const hasSell = outputs.some(o => o.includes('Sold'));
@@ -247,7 +251,7 @@ export function createMissions(): Mission[] {
       researchCredits: 10,
       moneyReward: 10000,
       prerequisites: ['fibonacci'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
         const printed = outputs.map(o => parseInt(o.trim())).filter(n => !isNaN(n));
@@ -267,7 +271,7 @@ export function createMissions(): Mission[] {
       researchCredits: 15,
       moneyReward: 50000,
       prerequisites: ['prime_numbers'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         return outputs.some(o => o.trim() === 'FOUND');
       },
@@ -282,7 +286,7 @@ export function createMissions(): Mission[] {
       researchCredits: 15,
       moneyReward: 100000,
       prerequisites: ['binary_search'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         return outputs.some(o => o.trim() === 'TXDQWXP');
       },
@@ -299,7 +303,7 @@ export function createMissions(): Mission[] {
       moneyReward: 5000,
       prerequisites: ['sort_stocks'],
       requiredResearch: 'seti_program',
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         return outputs.some(o => o.includes('Epsilon Eridani'));
       },
@@ -309,12 +313,13 @@ export function createMissions(): Mission[] {
       name: 'SETI: Deep Space Array',
       description: 'Build a $1,000,000 deep space array and transmit a signal to Epsilon Eridani.',
       era: 'science',
-      hint: 'Call seti.transmit("Epsilon Eridani"). You need at least $1,000,000.',
-      starterCode: '// Transmit a signal to the anomalous star\n// WARNING: This costs $1,000,000!\n',
+      hint: 'Call seti.transmit("Epsilon Eridani"). Collecting this mission costs $1,000,000.',
+      starterCode: '// Transmit a signal to the anomalous star\n// Collecting this mission will cost $1,000,000\n',
       researchCredits: 15,
       moneyReward: 0,
+      collectCost: 1000000,
       prerequisites: ['seti_scan'],
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         return outputs.some(o => o.includes('Transmission sent'));
       },
@@ -331,7 +336,7 @@ export function createMissions(): Mission[] {
       prerequisites: ['seti_transmit'],
       requiredResearch: 'gpu_compute',
       minYear: 2003,
-      completed: false,
+      completed: false, readyToCollect: false,
       validate: (outputs) => {
         return outputs.some(o => o.includes('YOU ARE NOT ALONE'));
       },
