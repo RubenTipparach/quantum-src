@@ -144,7 +144,7 @@ export class Sidebar {
         return;
       }
 
-      // Mission load saved code button
+      // Mission load saved code button — opens modal
       const loadCodeBtn = target.closest('.mission-load-code-btn') as HTMLElement | null;
       if (loadCodeBtn) {
         e.preventDefault();
@@ -152,10 +152,8 @@ export class Sidebar {
         const id = loadCodeBtn.dataset['id'];
         if (id) {
           const mission = this.state.missions.find(m => m.id === id);
-          if (mission?.savedCode && this.onLoadMission) {
-            // Create a temporary mission-like load to set code
-            this.onLoadMission({ ...mission, starterCode: mission.savedCode });
-            this.console.appendSystem(`Loaded saved code for: ${mission.name}`);
+          if (mission?.savedCode) {
+            this.showMissionCodeModal(mission);
           }
         }
         return;
@@ -171,12 +169,16 @@ export class Sidebar {
           const mission = this.state.missions.find(m => m.id === id);
           if (mission) {
             const code = this.onGetCode();
-            if (code.trim()) {
+            if (!code.trim()) {
+              this.console.appendError('Editor is empty — nothing to save.');
+              return;
+            }
+            if (mission.savedCode) {
+              this.showConfirmOverwriteModal(mission, code);
+            } else {
               mission.savedCode = code;
               this.state.save();
               this.console.appendSystem(`Saved code snippet to: ${mission.name}`);
-            } else {
-              this.console.appendError('Editor is empty — nothing to save.');
             }
           }
         }
@@ -354,6 +356,91 @@ export class Sidebar {
           }
         }
       });
+    });
+  }
+
+  private showMissionCodeModal(mission: Mission): void {
+    document.getElementById('mission-code-modal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'mission-code-modal';
+
+    const escaped = mission.savedCode!
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    modal.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#0c1824;border:1px solid #2a4a6a;border-radius:8px;max-width:600px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #1a2a3a;">
+            <div>
+              <span style="color:#44dd88;font-weight:bold;font-size:13px;">&#10003; ${mission.name}</span>
+              <span style="color:#556677;font-size:11px;margin-left:8px;">Saved Code</span>
+            </div>
+            <button class="mc-close" style="background:none;border:none;color:#668877;font-size:20px;cursor:pointer;padding:0 4px;">&times;</button>
+          </div>
+          <div style="padding:12px 16px;overflow-y:auto;flex:1;">
+            <pre style="background:#060e18;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin:0;color:#88ccaa;font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;overflow-x:auto;">${escaped}</pre>
+          </div>
+          <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;">
+            <button class="mc-load" style="background:#1a3a2a;border:1px solid #44dd8855;color:#44dd88;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load into Editor</button>
+            <button class="mc-close" style="background:#1a2a3a;border:1px solid #2a4a6a;color:#668877;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close
+    modal.querySelectorAll('.mc-close').forEach(btn => {
+      btn.addEventListener('click', () => modal.remove());
+    });
+    // Click backdrop to close
+    modal.querySelector('div')?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) modal.remove();
+    });
+    // Load into editor
+    modal.querySelector('.mc-load')?.addEventListener('click', () => {
+      if (this.onLoadMission) {
+        this.onLoadMission({ ...mission, starterCode: mission.savedCode! });
+        this.console.appendSystem(`Loaded saved code for: ${mission.name}`);
+      }
+      modal.remove();
+    });
+  }
+
+  private showConfirmOverwriteModal(mission: Mission, newCode: string): void {
+    document.getElementById('confirm-overwrite-modal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'confirm-overwrite-modal';
+
+    modal.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#0c1824;border:1px solid #aa663355;border-radius:8px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="padding:16px;">
+            <div style="color:#ffaa44;font-weight:bold;font-size:13px;margin-bottom:8px;">Overwrite saved code?</div>
+            <div style="color:#88aabb;font-size:12px;">This will replace the saved code snippet for <b style="color:#ccddcc;">${mission.name}</b>. This cannot be undone.</div>
+          </div>
+          <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;">
+            <button class="ow-cancel" style="background:#1a2a3a;border:1px solid #2a4a6a;color:#668877;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
+            <button class="ow-confirm" style="background:#3a2a1a;border:1px solid #ffaa4455;color:#ffaa44;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Overwrite</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.ow-cancel')?.addEventListener('click', () => modal.remove());
+    modal.querySelector('div')?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) modal.remove();
+    });
+    modal.querySelector('.ow-confirm')?.addEventListener('click', () => {
+      mission.savedCode = newCode;
+      this.state.save();
+      this.console.appendSystem(`Updated code snippet for: ${mission.name}`);
+      modal.remove();
     });
   }
 
@@ -1140,8 +1227,8 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
         html.push(`<div class="research-done" style="color:#6644aa;display:flex;justify-content:space-between;align-items:center;">
           <span>[DONE] ${m.name}</span>
           <span style="display:flex;gap:4px;">
-            ${hasCode ? `<button class="mission-load-code-btn" data-id="${m.id}" style="background:none;border:1px solid #aa88ff44;color:#aa88ff;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="Load saved code">&#128196;</button>` : ''}
-            <button class="mission-save-code-btn" data-id="${m.id}" style="background:none;border:1px solid #44886644;color:#448866;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="Save current code to this mission">&#128190;</button>
+            ${hasCode ? `<button class="mission-load-code-btn" data-id="${m.id}" style="background:none;border:1px solid #aa88ff44;color:#aa88ff;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="View saved code snippet">&#128196;</button>` : ''}
+            <button class="mission-save-code-btn" data-id="${m.id}" style="background:none;border:1px solid #44886644;color:#448866;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="${hasCode ? 'Overwrite saved code with current editor' : 'Save current editor code to this mission'}">&#128190;</button>
           </span>
         </div>`);
       }
