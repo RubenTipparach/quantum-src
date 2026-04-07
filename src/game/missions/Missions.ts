@@ -40,7 +40,7 @@ export interface MissionGameRef {
 
 export function createMissions(): Mission[] {
   return [
-    // === DAWN ERA: Learning the basics ===
+    // === DAWN OF COMPUTING: Learning the basics ===
     {
       id: 'hello_world',
       name: 'Hello World',
@@ -53,39 +53,6 @@ export function createMissions(): Mission[] {
       prerequisites: [],
       completed: false, readyToCollect: false,
       validate: (outputs) => outputs.some(o => o.includes('Hello World')),
-    },
-    {
-      id: 'read_market',
-      name: 'Market Reader',
-      description: 'Print the price of every stock on the market.',
-      era: 'dawn',
-      hint: 'Use market.scan() to get stock data, then loop and print each price.',
-      starterCode: '// Get all stocks and print each symbol with its price\n',
-      researchCredits: 2,
-      moneyReward: 200,
-      prerequisites: ['hello_world'],
-      completed: false, readyToCollect: false,
-      validate: (outputs) => {
-        // Must print at least 5 lines containing a $ sign (one per stock)
-        const priceLines = outputs.filter(o => o.includes('$'));
-        return priceLines.length >= 5;
-      },
-    },
-    {
-      id: 'find_cheapest',
-      name: 'Bargain Hunter',
-      description: 'Find and print the symbol of the cheapest stock.',
-      era: 'dawn',
-      hint: 'Loop through stocks, track the one with the lowest price.',
-      starterCode: '// Find the cheapest stock and print its symbol\nlet stocks = market.scan()\n',
-      researchCredits: 3,
-      moneyReward: 300,
-      prerequisites: ['read_market'],
-      completed: false, readyToCollect: false,
-      validate: (outputs, _gs) => {
-        // Output must contain a stock symbol (all caps, 4 chars)
-        return outputs.some(o => /^[A-Z]{4}$/.test(o.trim()));
-      },
     },
     {
       id: 'first_buy',
@@ -117,11 +84,44 @@ export function createMissions(): Mission[] {
         return hasBuy && hasSell;
       },
     },
+
+    // === MARKET: Trading & Market Manipulation ===
+    {
+      id: 'read_market',
+      name: 'Market Reader',
+      description: 'Print the price of every stock on the market.',
+      era: 'market',
+      hint: 'Use market.scan() to get stock data, then loop and print each price.',
+      starterCode: '// Get all stocks and print each symbol with its price\n',
+      researchCredits: 2,
+      moneyReward: 200,
+      prerequisites: ['hello_world'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        const priceLines = outputs.filter(o => o.includes('$'));
+        return priceLines.length >= 5;
+      },
+    },
+    {
+      id: 'find_cheapest',
+      name: 'Bargain Hunter',
+      description: 'Find and print the symbol of the cheapest stock.',
+      era: 'market',
+      hint: 'Loop through stocks, track the one with the lowest price.',
+      starterCode: '// Find the cheapest stock and print its symbol\nlet stocks = market.scan()\n',
+      researchCredits: 3,
+      moneyReward: 300,
+      prerequisites: ['read_market'],
+      completed: false, readyToCollect: false,
+      validate: (outputs, _gs) => {
+        return outputs.some(o => /^[A-Z]{4}$/.test(o.trim()));
+      },
+    },
     {
       id: 'sum_market',
       name: 'Market Cap',
       description: 'Calculate and print the total value of all stocks (sum of all prices).',
-      era: 'dawn',
+      era: 'market',
       hint: 'Loop through stocks, sum their prices, print the total.',
       starterCode: '// Calculate and print the sum of all stock prices\nlet stocks = market.scan();\n',
       researchCredits: 3,
@@ -129,7 +129,6 @@ export function createMissions(): Mission[] {
       prerequisites: ['read_market'],
       completed: false, readyToCollect: false,
       validate: (outputs) => {
-        // Must print a number > 0
         return outputs.some(o => {
           const n = parseFloat(o.replace(/[$,]/g, ''));
           return !isNaN(n) && n > 10;
@@ -140,7 +139,7 @@ export function createMissions(): Mission[] {
       id: 'sort_stocks',
       name: 'Stock Sorter',
       description: 'Print all stock symbols sorted by price, cheapest first.',
-      era: 'dawn',
+      era: 'market',
       hint: 'Use Array.sort() to sort by price, then print each symbol.',
       starterCode: '// Sort stocks by price (ascending) and print symbols\nlet stocks = market.scan();\n',
       researchCredits: 5,
@@ -148,18 +147,15 @@ export function createMissions(): Mission[] {
       prerequisites: ['find_cheapest', 'sum_market'],
       completed: false, readyToCollect: false,
       validate: (outputs) => {
-        // Must have at least 5 outputs that are stock symbols
         const syms = outputs.filter(o => /^[A-Z]{4}$/.test(o.trim()));
         return syms.length >= 5;
       },
     },
-
-    // === DAWN ERA: Advanced ===
     {
       id: 'buy_cheapest',
       name: 'Value Investor',
       description: 'Write a program that finds the cheapest stock and buys 10 shares of it.',
-      era: 'dawn',
+      era: 'market',
       hint: 'Combine finding the cheapest with market.buy().',
       starterCode: '// Find the cheapest stock and buy 10 shares\nlet stocks = market.scan();\n',
       researchCredits: 5,
@@ -172,7 +168,7 @@ export function createMissions(): Mission[] {
       id: 'portfolio_value',
       name: 'Portfolio Analyzer',
       description: 'Print the total $ value of your portfolio (shares * current prices).',
-      era: 'dawn',
+      era: 'market',
       hint: 'Use market.holdings() and market.scan() to calculate total value.',
       starterCode: '// Calculate and print your total portfolio value\nlet portfolio = market.holdings()\nlet stocks = market.scan()\n',
       researchCredits: 5,
@@ -184,6 +180,116 @@ export function createMissions(): Mission[] {
           const n = parseFloat(o.replace(/[$,]/g, ''));
           return !isNaN(n) && n >= 0;
         });
+      },
+    },
+    {
+      id: 'news_trader',
+      name: 'News Trader',
+      description: 'Read the news feed and buy 5 shares of any stock with an active bullish event.',
+      era: 'market',
+      hint: 'Use market.feed() to find active events with impact > 0. Check stockImpacts for tickers, then market.buy().',
+      starterCode: '// Find bullish news and ride the wave\nlet news = market.feed()\nlet stocks = market.scan()\n',
+      researchCredits: 6,
+      moneyReward: 2000,
+      prerequisites: ['portfolio_value'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        return outputs.some(o => o.includes('Acquired') && o.includes('5'));
+      },
+    },
+    {
+      id: 'sector_sweep',
+      name: 'Sector Sweep',
+      description: 'Buy 3 shares of every stock in the same sector. Print the sector name first.',
+      era: 'market',
+      hint: 'Use market.scan() to group by sector. Pick one sector, print it, then buy 3 of each stock in it.',
+      starterCode: '// Pick a sector and buy 3 shares of every stock in it\nlet stocks = market.scan()\n',
+      researchCredits: 6,
+      moneyReward: 3000,
+      prerequisites: ['sort_stocks'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        const buys = outputs.filter(o => o.includes('Acquired') && o.includes('3'));
+        return buys.length >= 2; // At least 2 stocks in one sector
+      },
+    },
+    {
+      id: 'penny_flipper',
+      name: 'Penny Flipper',
+      description: 'Buy 20 shares of any stock under $5, and sell 20 shares of any stock over $25. Classic arbitrage.',
+      era: 'market',
+      hint: 'Scan for cheap and expensive stocks. Buy low, sell high — in the same program.',
+      starterCode: '// Buy penny stocks, dump expensive ones\nlet stocks = market.scan()\n',
+      researchCredits: 8,
+      moneyReward: 5000,
+      prerequisites: ['buy_cheapest'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        const hasBuy = outputs.some(o => o.includes('Acquired') && /\b20\b/.test(o));
+        const hasSell = outputs.some(o => o.includes('Sold') && /\b20\b/.test(o));
+        return hasBuy && hasSell;
+      },
+    },
+    {
+      id: 'pump_dump',
+      name: 'Pump & Dump',
+      description: 'Buy 50 shares of the cheapest stock, print "PUMP", then sell all 50 and print "DUMP".',
+      era: 'market',
+      hint: 'Find the cheapest stock, buy 50, print PUMP, sell 50, print DUMP. The large trade triggers a news event.',
+      starterCode: '// The classic pump and dump\nlet stocks = market.scan()\n',
+      researchCredits: 10,
+      moneyReward: 10000,
+      prerequisites: ['penny_flipper'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        const pumpIdx = outputs.findIndex(o => o.trim() === 'PUMP');
+        const dumpIdx = outputs.findIndex(o => o.trim() === 'DUMP');
+        const hasBuy50 = outputs.some(o => o.includes('Acquired') && /\b50\b/.test(o));
+        const hasSell50 = outputs.some(o => o.includes('Sold') && /\b50\b/.test(o));
+        return pumpIdx >= 0 && dumpIdx > pumpIdx && hasBuy50 && hasSell50;
+      },
+    },
+    {
+      id: 'market_crash',
+      name: 'Market Crash',
+      description: 'Mass liquidation: sell 100+ total shares across at least 3 different stocks. Print "CRASH" when done.',
+      era: 'market',
+      hint: 'You need to own shares first. Buy or already hold stock in 3+ tickers, then sell 100+ total shares.',
+      starterCode: '// Crash the market — mass sell-off\nlet stocks = market.scan()\nlet h = market.holdings()\n',
+      researchCredits: 12,
+      moneyReward: 15000,
+      prerequisites: ['pump_dump'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        const sells = outputs.filter(o => o.includes('Sold'));
+        const symbols = new Set<string>();
+        let totalQty = 0;
+        for (const s of sells) {
+          const symMatch = s.match(/Sold (\d+) ([A-Z]{4})/);
+          if (symMatch) {
+            totalQty += parseInt(symMatch[1]!);
+            symbols.add(symMatch[2]!);
+          }
+        }
+        const hasCrash = outputs.some(o => o.trim() === 'CRASH');
+        return symbols.size >= 3 && totalQty >= 100 && hasCrash;
+      },
+    },
+    {
+      id: 'insider_trading',
+      name: 'Insider Trading',
+      description: 'Read the news, find the stock with the worst active event (biggest negative impact), and buy 20 shares of it. Print "BUY THE DIP" first.',
+      era: 'market',
+      hint: 'Use market.feed() to find active bearish events (impact < 0). Find the stock with the largest negative stockImpact, print "BUY THE DIP", then buy 20.',
+      starterCode: '// Buy the dip — insider knowledge\nlet news = market.feed()\nlet stocks = market.scan()\n',
+      researchCredits: 15,
+      moneyReward: 20000,
+      prerequisites: ['news_trader', 'market_crash'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        const hasDip = outputs.some(o => o.trim() === 'BUY THE DIP');
+        const hasBuy20 = outputs.some(o => o.includes('Acquired') && /\b20\b/.test(o));
+        return hasDip && hasBuy20;
       },
     },
 

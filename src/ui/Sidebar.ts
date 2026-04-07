@@ -283,6 +283,7 @@ export class Sidebar {
     // Group missions by era
     const eras = [
       { key: 'dawn', label: 'Dawn of Computing', color: '#88ccaa' },
+      { key: 'market', label: 'Market', color: '#44dd88' },
       { key: 'science', label: 'Scientific Research', color: '#44bbff' },
       { key: 'crypto', label: 'Crypto Era', color: '#ffaa44' },
       { key: 'quantum', label: 'Quantum Era', color: '#aa88ff' },
@@ -314,7 +315,7 @@ export class Sidebar {
       if (status === 'completed') return '#44dd88';
       if (status === 'ready') return '#ffcc44';
       if (status === 'available') return '#ffcc44';
-      return '#445566';
+      return '#667788';
     };
 
     let html = '';
@@ -340,7 +341,7 @@ export class Sidebar {
         }
         if (m.minYear) reqs.push(`Year ${m.minYear}+`);
         const prereqText = reqs.length > 0
-          ? `<div style="color:#556677;font-size:9px;margin-top:2px;">Requires: ${reqs.join(', ')}</div>`
+          ? `<div style="color:#7799aa;font-size:9px;margin-top:2px;">Requires: ${reqs.join(', ')}</div>`
           : '';
         const rewardText = `<span style="color:#aa88ff;font-size:10px;">${m.researchCredits} cr</span>`
           + (m.moneyReward > 0 ? ` <span style="color:#44dd88;font-size:10px;">+$${m.moneyReward.toLocaleString()}</span>` : '');
@@ -348,7 +349,7 @@ export class Sidebar {
         const isClickable = status === 'available' || status === 'ready';
         const cursor = isClickable ? 'cursor:pointer;' : '';
         const hoverBg = isClickable ? 'background:#1a2a3a;' : '';
-        const opacity = status === 'locked' ? 'opacity:0.5;' : '';
+        const opacity = status === 'locked' ? 'opacity:0.7;' : '';
 
         html += `<div class="mission-tree-node${isClickable ? ' mission-tree-clickable' : ''}" data-mission-id="${m.id}"
           style="padding:6px 8px;margin:3px 0;border-left:3px solid ${color};${cursor}${hoverBg}${opacity}border-radius:0 4px 4px 0;">
@@ -898,7 +899,7 @@ sports.wager("football", 100, {
 
           <div class="docs-group" id="docs-seti">
             <h4 id="docs-seti-title">seti — Deep Space Scanning</h4>
-            <div id="docs-seti-lock" style="display:none;color:#445566;font-size:11px;padding:6px 8px;border:1px dashed #334455;border-radius:4px;margin-bottom:6px;">
+            <div id="docs-seti-lock" style="display:none;color:#778899;font-size:11px;padding:6px 8px;border:1px dashed #445566;border-radius:4px;margin-bottom:6px;">
               &#128274; Locked — Requires <b>SETI Program</b> research
             </div>
             <div id="docs-seti-content">
@@ -1507,11 +1508,11 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
         setiTitle.style.color = '';
         if (tocSeti) tocSeti.style.color = '#88ccaa';
       } else {
-        setiGroup.style.opacity = '0.45';
+        setiGroup.style.opacity = '0.6';
         setiContent.style.display = 'none';
         setiLock.style.display = '';
-        setiTitle.style.color = '#445566';
-        if (tocSeti) tocSeti.style.color = '#445566';
+        setiTitle.style.color = '#667788';
+        if (tocSeti) tocSeti.style.color = '#667788';
       }
     }
   }
