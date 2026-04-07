@@ -9,6 +9,7 @@ export class Sidebar {
   private console: ConsoleOutput;
   private prevPrices: Map<string, number> = new Map();
   private onLoadMission: ((mission: Mission) => void) | null = null;
+  private onLoadMissionCode: ((mission: Mission) => void) | null = null;
   private onInsertCode: ((code: string) => void) | null = null;
   private onGetCode: (() => string) | null = null;
   private onCollectMission: ((missionId: string) => void) | null = null;
@@ -142,7 +143,22 @@ export class Sidebar {
         return;
       }
 
-      // Mission buttons
+      // Mission load starter code button — confirm before overwriting editor
+      const loadStarterBtn = target.closest('.mission-load-starter-btn') as HTMLElement | null;
+      if (loadStarterBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = loadStarterBtn.dataset['id'];
+        if (id) {
+          const mission = this.state.missions.find(m => m.id === id);
+          if (mission && this.onLoadMissionCode) {
+            this.showConfirmLoadCodeModal(mission);
+          }
+        }
+        return;
+      }
+
+      // Mission buttons — show info only, no code overwrite
       const missionBtn = target.closest('.mission-btn') as HTMLElement | null;
       if (missionBtn) {
         e.preventDefault();
@@ -514,10 +530,53 @@ export class Sidebar {
     });
     // Load into editor
     modal.querySelector('.mc-load')?.addEventListener('click', () => {
-      if (this.onLoadMission) {
-        this.onLoadMission({ ...mission, starterCode: mission.savedCode! });
+      modal.remove();
+      if (this.onLoadMissionCode) {
+        this.onLoadMissionCode({ ...mission, starterCode: mission.savedCode! });
         this.console.appendSystem(`Loaded saved code for: ${mission.name}`);
       }
+    });
+  }
+
+  private showConfirmLoadCodeModal(mission: Mission): void {
+    document.getElementById('confirm-load-modal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'confirm-load-modal';
+
+    const hasSavedCode = !!mission.savedCode;
+    const codeLabel = mission.starterCode.split('\n').filter(l => l.trim()).length;
+
+    modal.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#0c1824;border:1px solid #aa88ff44;border-radius:8px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="padding:16px;">
+            <div style="color:#aa88ff;font-weight:bold;font-size:13px;margin-bottom:8px;">Load Code — ${mission.name}</div>
+            <div style="color:#88aabb;font-size:12px;">This will replace whatever is currently in the editor.</div>
+            ${hasSavedCode ? `<div style="color:#668877;font-size:11px;margin-top:6px;">You also have saved code for this mission.</div>` : ''}
+          </div>
+          <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="lc-cancel" style="background:#1a2a3a;border:1px solid #2a4a6a;color:#668877;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
+            ${hasSavedCode ? `<button class="lc-saved" style="background:#1a2a3a;border:1px solid #aa88ff44;color:#aa88ff;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load Saved Code</button>` : ''}
+            <button class="lc-starter" style="background:#1a2a3a;border:1px solid #44dd8855;color:#44dd88;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load Starter (${codeLabel} lines)</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.lc-cancel')?.addEventListener('click', () => modal.remove());
+    modal.querySelector('div')?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) modal.remove();
+    });
+    modal.querySelector('.lc-starter')?.addEventListener('click', () => {
+      if (this.onLoadMissionCode) this.onLoadMissionCode(mission);
+      modal.remove();
+    });
+    modal.querySelector('.lc-saved')?.addEventListener('click', () => {
+      if (this.onLoadMissionCode) this.onLoadMissionCode({ ...mission, starterCode: mission.savedCode! });
+      this.console.appendSystem(`Loaded saved code for: ${mission.name}`);
       modal.remove();
     });
   }
@@ -646,6 +705,10 @@ export class Sidebar {
 
   setOnLoadMission(fn: (mission: Mission) => void): void {
     this.onLoadMission = fn;
+  }
+
+  setOnLoadMissionCode(fn: (mission: Mission) => void): void {
+    this.onLoadMissionCode = fn;
   }
 
   setOnInsertCode(fn: (code: string) => void): void {
@@ -1348,11 +1411,16 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
 
     // Available missions
     for (const m of available) {
-      html.push(`<button class="sidebar-btn mission-btn" data-id="${m.id}" title="${m.hint}" style="border-color:#aa88ff55;">
-        <span style="color:#aa88ff;">${m.name}</span>
-        <span class="cost" style="color:#aa88ff;">+${m.researchCredits} cr</span>
+      html.push(`<div class="sidebar-btn mission-btn" data-id="${m.id}" title="${m.hint}" style="border-color:#aa88ff55;cursor:pointer;">
+        <span style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#aa88ff;">${m.name}</span>
+          <span class="cost" style="color:#aa88ff;">+${m.researchCredits} cr</span>
+        </span>
         <span class="year-advance" style="color:#668877;font-size:9px;">${m.description}</span>
-      </button>`);
+        <span style="display:flex;justify-content:end;margin-top:3px;">
+          <button class="mission-load-starter-btn" data-id="${m.id}" style="background:none;border:1px solid #aa88ff44;color:#aa88ff;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;" title="Load starter code into editor">&#128196; Load Code</button>
+        </span>
+      </div>`);
     }
 
     // Completed missions

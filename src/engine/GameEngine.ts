@@ -30,12 +30,17 @@ export class GameEngine {
     this.sidebar = new Sidebar(sidebarEl, gameState, this.consoleOutput);
 
     this.sidebar.setOnLoadMission((mission) => {
-      if (this.executing) this.stopExecution();
-      this.editor.setCode(mission.starterCode);
       this.consoleOutput.appendSystem(`--- MISSION: ${mission.name} ---`);
       this.consoleOutput.appendLog(mission.description);
       this.consoleOutput.appendLog(`Hint: ${mission.hint}`);
       this.consoleOutput.appendLog(`Reward: ${mission.researchCredits} research credits` + (mission.moneyReward > 0 ? ` + $${mission.moneyReward.toLocaleString()}` : ''));
+      if (mission.collectCost) this.consoleOutput.appendLog(`Collection cost: $${mission.collectCost.toLocaleString()}`);
+    });
+
+    this.sidebar.setOnLoadMissionCode((mission) => {
+      if (this.executing) this.stopExecution();
+      this.editor.setCode(mission.starterCode);
+      this.consoleOutput.appendSystem(`Loaded starter code for: ${mission.name}`);
     });
 
     const editorContainer = document.getElementById('editor-container') as HTMLDivElement;
@@ -394,7 +399,7 @@ export class GameEngine {
     renderFiles();
   }
 
-  /** Show a "ready to collect" toast with a Collect button */
+  /** Show a "ready to collect" notification toast — collect via sidebar */
   private showCollectToast(mission: import('../game/missions/Missions').Mission): void {
     // Inject animation keyframes if not already present
     if (!document.getElementById('mission-toast-style')) {
@@ -404,7 +409,6 @@ export class GameEngine {
         @keyframes toast-in { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
         @keyframes toast-out { from { opacity:1; } to { opacity:0; transform:translateX(-50%) translateY(-20px); } }
         @keyframes confetti-fall { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(100vh) rotate(720deg); opacity:0; } }
-        @keyframes toast-pulse { 0%,100% { box-shadow: 0 0 20px #ffcc4433, 0 8px 32px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 40px #ffcc4466, 0 8px 32px rgba(0,0,0,0.5); } }
       `;
       document.head.appendChild(style);
     }
@@ -414,7 +418,7 @@ export class GameEngine {
 
     const reward = `+${mission.researchCredits} cr` + (mission.moneyReward > 0 ? ` +$${mission.moneyReward.toLocaleString()}` : '');
     const costLine = mission.collectCost
-      ? `<div style="color:#ff8844;font-size:11px;margin-top:2px;">Cost: $${mission.collectCost.toLocaleString()}</div>`
+      ? `<div style="color:#ff8844;font-size:11px;margin-top:2px;">Collection cost: $${mission.collectCost.toLocaleString()}</div>`
       : '';
 
     toast.innerHTML = `
@@ -423,34 +427,32 @@ export class GameEngine {
       <div style="color:#ccddcc;font-size:12px;margin:4px 0;">${mission.name}</div>
       <div style="color:#aa88ff;font-size:11px;">${reward}</div>
       ${costLine}
-      <button class="collect-btn" style="
-        margin-top:10px; padding:8px 24px;
-        background: linear-gradient(135deg, #1a3a2a, #2a4a3a);
-        border: 1px solid #44dd88; border-radius: 6px;
-        color: #44dd88; font-size: 13px; font-weight: bold;
-        cursor: pointer; transition: all 0.2s;
-      ">&#127942; Collect!</button>
+      <div style="color:#668877;font-size:10px;margin-top:8px;">Collect from the Missions panel</div>
+      <button class="toast-dismiss-btn" style="
+        margin-top:8px; padding:4px 16px;
+        background: none; border: 1px solid #33445566;
+        border-radius: 4px; color: #556677; font-size: 11px;
+        cursor: pointer;
+      ">&times; Dismiss</button>
     `;
     toast.style.cssText = `
       position: fixed; top: 18%; left: 50%; transform: translateX(-50%);
       background: linear-gradient(135deg, #0c1824f0, #1a2a3af0);
       border: 1px solid #ffcc4466; border-radius: 12px;
       padding: 20px 36px; text-align: center; z-index: 10000;
-      animation: toast-in 0.4s ease-out, toast-pulse 2s ease-in-out 0.4s infinite;
+      animation: toast-in 0.4s ease-out;
       pointer-events: auto;
     `;
 
     document.body.appendChild(toast);
 
-    const collectBtn = toast.querySelector('.collect-btn') as HTMLButtonElement;
-    collectBtn.addEventListener('click', () => {
-      this.doCollectMission(mission.id, toast);
-    });
-
-    // Also allow clicking outside to dismiss (toast stays in sidebar)
+    toast.querySelector('.toast-dismiss-btn')?.addEventListener('click', () => toast.remove());
+    // Also click backdrop area to dismiss
     toast.addEventListener('click', (e) => {
       if (e.target === toast) toast.remove();
     });
+
+    this.consoleOutput.appendSystem(`MISSION READY: ${mission.name} — Collect from the Missions panel!`);
   }
 
   /** Attempt to collect a mission, show confetti on success or error on fail */
