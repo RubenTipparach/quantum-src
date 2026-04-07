@@ -4,7 +4,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { basicSetup } from 'codemirror';
 
-const STARTER_CODE = `// QuantumSrc Terminal v1.0
+const STARTER_CODE = `// Quantum.src Terminal v1.0
 // Type 'print' to output. See Docs tab for full API reference.
 
 let stocks = market.scan()

@@ -726,7 +726,7 @@ export class Sidebar {
   private render(): void {
     this.el.innerHTML = `
       <div class="sb-header">
-        <span>QUANTUM SRC</span>
+        <span class="sb-logo">Quantum.src</span>
         <button id="btn-settings" class="sb-settings-btn" title="Settings">&#9881;</button>
       </div>
 

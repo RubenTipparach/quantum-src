@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>QuantumSrc — Build the Future</title>
+  <title>Quantum.src — Build the Future</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
@@ -61,7 +61,6 @@
       border-bottom: 1px solid #1a3a2a;
       font-size: 14px;
       font-weight: bold;
-      color: #00ff88;
       letter-spacing: 2px;
       display: flex;
       justify-content: space-between;
@@ -70,6 +69,32 @@
       gap: 8px;
     }
     .sb-header > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .sb-logo {
+      background: linear-gradient(
+        135deg,
+        #00ff88 0%,
+        #44ffaa 15%,
+        #88ffcc 30%,
+        #ffffff 45%,
+        #88ccff 55%,
+        #aa88ff 70%,
+        #44ffaa 85%,
+        #00ff88 100%
+      );
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: logo-shimmer 4s ease-in-out infinite;
+      text-shadow: none;
+      filter: drop-shadow(0 0 6px rgba(0,255,136,0.3)) drop-shadow(0 1px 0 rgba(0,0,0,0.5));
+      font-size: 15px;
+    }
+    @keyframes logo-shimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
     .sb-settings-btn {
       background: none;
       border: 1px solid #1a3a2a;

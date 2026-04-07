@@ -8,7 +8,7 @@ export class ConsoleOutput {
 
   constructor(el: HTMLDivElement) {
     this.el = el;
-    this.appendSystem('QuantumSrc v0.1 — Write programs to trade on the stock market.');
+    this.appendSystem('Quantum.src v0.1 — Write programs to trade on the stock market.');
     this.appendSystem('Use the code editor. Click RUN or press Ctrl+Enter.');
     this.appendLog('API: game.getMoney(), game.getStocks(), game.buy("SYM", qty), game.sell("SYM", qty)');
   }
