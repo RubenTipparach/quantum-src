@@ -100,6 +100,45 @@ export class Sidebar {
         return;
       }
 
+      // Shop buttons
+      const shopBtn = target.closest('.shop-btn') as HTMLElement | null;
+      if (shopBtn) {
+        e.preventDefault();
+        const id = shopBtn.dataset['id'];
+        if (id) {
+          const result = this.state.shop.purchase(id, this.state);
+          if (result.startsWith('Purchased')) {
+            this.console.appendSystem(result);
+            this.state.save();
+          } else {
+            this.console.appendError(result);
+          }
+        }
+        return;
+      }
+
+      // Mission buttons
+      const missionBtn = target.closest('.mission-btn') as HTMLElement | null;
+      if (missionBtn) {
+        e.preventDefault();
+        const id = missionBtn.dataset['id'];
+        if (id) {
+          const mission = this.state.missions.find(m => m.id === id);
+          if (mission && this.onLoadMission) {
+            this.onLoadMission(mission);
+          }
+        }
+        return;
+      }
+
+      // Mission tree button
+      const treeBtn = target.closest('#btn-mission-tree') as HTMLElement | null;
+      if (treeBtn) {
+        e.preventDefault();
+        this.showMissionTreeModal();
+        return;
+      }
+
       // Stock tag tooltips — only on touch devices (desktop uses hover)
       const tag = target.closest('.stock-tag') as HTMLElement | null;
       if (tag && isTouchDevice()) {
@@ -142,6 +181,128 @@ export class Sidebar {
         this.tooltipEl.style.display = 'none';
       });
     }
+  }
+
+  private showMissionTreeModal(): void {
+    document.getElementById('mission-tree-modal')?.remove();
+
+    const missions = this.state.missions;
+    const modal = document.createElement('div');
+    modal.id = 'mission-tree-modal';
+
+    // Group missions by era
+    const eras = [
+      { key: 'dawn', label: 'Dawn of Computing', color: '#88ccaa' },
+      { key: 'crypto', label: 'Crypto Era', color: '#ffaa44' },
+      { key: 'quantum', label: 'Quantum Era', color: '#aa88ff' },
+    ];
+
+    const getMissionStatus = (m: Mission): 'completed' | 'available' | 'locked' => {
+      if (m.completed) return 'completed';
+      const prereqsMet = m.prerequisites.every(
+        pid => missions.find(m2 => m2.id === pid)?.completed
+      );
+      return prereqsMet ? 'available' : 'locked';
+    };
+
+    const statusIcon = (status: string) => {
+      if (status === 'completed') return '<span style="color:#44dd88;">&#10003;</span>';
+      if (status === 'available') return '<span style="color:#ffcc44;">&#9679;</span>';
+      return '<span style="color:#334455;">&#9632;</span>';
+    };
+
+    const statusColor = (status: string) => {
+      if (status === 'completed') return '#44dd88';
+      if (status === 'available') return '#ffcc44';
+      return '#445566';
+    };
+
+    let html = '';
+    for (const era of eras) {
+      const eraMissions = missions.filter(m => m.era === era.key);
+      if (eraMissions.length === 0) continue;
+
+      html += `<div style="margin-bottom:12px;">
+        <div style="color:${era.color};font-weight:bold;margin-bottom:6px;font-size:13px;border-bottom:1px solid ${era.color}33;padding-bottom:4px;">${era.label}</div>`;
+
+      for (const m of eraMissions) {
+        const status = getMissionStatus(m);
+        const color = statusColor(status);
+        const icon = statusIcon(status);
+        const prereqNames = m.prerequisites.map(pid => {
+          const pm = missions.find(m2 => m2.id === pid);
+          return pm ? pm.name : pid;
+        });
+        const prereqText = prereqNames.length > 0
+          ? `<div style="color:#556677;font-size:9px;margin-top:2px;">Requires: ${prereqNames.join(', ')}</div>`
+          : '';
+        const rewardText = `<span style="color:#aa88ff;font-size:10px;">${m.researchCredits} cr</span>`
+          + (m.moneyReward > 0 ? ` <span style="color:#44dd88;font-size:10px;">+$${m.moneyReward.toLocaleString()}</span>` : '');
+
+        const isClickable = status === 'available';
+        const cursor = isClickable ? 'cursor:pointer;' : '';
+        const hoverBg = isClickable ? 'background:#1a2a3a;' : '';
+        const opacity = status === 'locked' ? 'opacity:0.5;' : '';
+
+        html += `<div class="mission-tree-node${isClickable ? ' mission-tree-clickable' : ''}" data-mission-id="${m.id}"
+          style="padding:6px 8px;margin:3px 0;border-left:3px solid ${color};${cursor}${hoverBg}${opacity}border-radius:0 4px 4px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>${icon} <span style="color:${color};">${m.name}</span></span>
+            ${rewardText}
+          </div>
+          <div style="color:#668877;font-size:10px;margin-top:2px;">${m.description}</div>
+          ${prereqText}
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // Legend
+    html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #223344;display:flex;gap:12px;font-size:10px;color:#668877;">
+      <span>${statusIcon('completed')} Completed</span>
+      <span>${statusIcon('available')} Available</span>
+      <span>${statusIcon('locked')} Locked</span>
+    </div>`;
+
+    const completedCount = missions.filter(m => m.completed).length;
+
+    modal.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#0c1824;border:1px solid #2a4a6a;border-radius:8px;max-width:500px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #1a2a3a;">
+            <span style="color:#aa88ff;font-weight:bold;font-size:14px;">Mission Tree</span>
+            <span style="color:#668877;font-size:11px;">${completedCount} / ${missions.length} complete</span>
+            <button id="close-mission-tree" style="background:none;border:none;color:#668877;font-size:20px;cursor:pointer;padding:0 4px;">&times;</button>
+          </div>
+          <div style="padding:12px 16px;overflow-y:auto;flex:1;">
+            ${html}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close button
+    document.getElementById('close-mission-tree')?.addEventListener('click', () => modal.remove());
+    // Click backdrop to close
+    modal.querySelector('div')?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) modal.remove();
+    });
+
+    // Clickable mission nodes load the mission
+    modal.querySelectorAll('.mission-tree-clickable').forEach(node => {
+      node.addEventListener('click', () => {
+        const id = (node as HTMLElement).dataset['missionId'];
+        if (id) {
+          const mission = missions.find(m => m.id === id);
+          if (mission && this.onLoadMission) {
+            this.onLoadMission(mission);
+            modal.remove();
+          }
+        }
+      });
+    });
   }
 
   private showNewsModal(): void {
@@ -268,6 +429,9 @@ export class Sidebar {
 
         <div class="sb-section">
           <h3>Missions</h3>
+          <button class="sidebar-btn" id="btn-mission-tree" style="margin-bottom:6px;text-align:center;background:#0a1220;border-color:#aa88ff55;color:#aa88ff;">
+            View Mission Tree
+          </button>
           <div id="sb-missions"></div>
         </div>
 
@@ -876,7 +1040,7 @@ sports.wager("football", 100, {
     for (const m of available) {
       html.push(`<button class="sidebar-btn mission-btn" data-id="${m.id}" title="${m.hint}" style="border-color:#aa88ff55;">
         <span style="color:#aa88ff;">${m.name}</span>
-        <span class="cost" style="color:#aa88ff;">${m.researchCredits} cr</span>
+        <span class="cost" style="color:#aa88ff;">+${m.researchCredits} cr</span>
         <span class="year-advance" style="color:#668877;font-size:9px;">${m.description}</span>
       </button>`);
     }
@@ -895,15 +1059,7 @@ sports.wager("football", 100, {
 
     el.innerHTML = html.join('');
 
-    el.querySelectorAll('.mission-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = (btn as HTMLElement).dataset['id']!;
-        const mission = s.missions.find(m => m.id === id);
-        if (mission && this.onLoadMission) {
-          this.onLoadMission(mission);
-        }
-      });
-    });
+    // Click handling is done via event delegation in constructor
   }
 
   private updateShop(): void {
@@ -919,8 +1075,8 @@ sports.wager("football", 100, {
 
     for (const item of available.slice(0, 8)) { // show max 8
       const canAfford = s.money >= item.cost;
-      const style = canAfford ? '' : 'opacity:0.6;';
-      html.push(`<button class="sidebar-btn shop-btn" style="${style}border-color:#44aa5555;" data-id="${item.id}" title="${item.description}">
+      const style = canAfford ? '' : 'opacity:0.5;pointer-events:none;';
+      html.push(`<button class="sidebar-btn shop-btn" style="${style}border-color:#44aa5555;" data-id="${item.id}" title="${item.description}"${canAfford ? '' : ' disabled'}>
         ${item.name}
         <span class="cost" style="color:#44dd88;">$${item.cost.toLocaleString()}</span>
         <span class="year-advance" style="color:#668877;font-size:9px;">${item.description}</span>
@@ -929,18 +1085,7 @@ sports.wager("football", 100, {
 
     el.innerHTML = html.join('');
 
-    el.querySelectorAll('.shop-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = (btn as HTMLElement).dataset['id']!;
-        const result = s.shop.purchase(id, s);
-        if (result.startsWith('Purchased')) {
-          this.console.appendSystem(result);
-          s.save();
-        } else {
-          this.console.appendError(result);
-        }
-      });
-    });
+    // Click handling is done via event delegation in constructor
   }
 
   private updateResearch(): void {
