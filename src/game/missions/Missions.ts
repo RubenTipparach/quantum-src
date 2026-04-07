@@ -14,6 +14,10 @@ export interface Mission {
   /** IDs of missions that must be completed first */
   prerequisites: string[];
   completed: boolean;
+  /** Research node ID that must be researched before this mission is available */
+  requiredResearch?: string;
+  /** Minimum in-game year before this mission is available */
+  minYear?: number;
   /**
    * Validate the program output. Receives the array of console log texts
    * and the game state. Return true if the mission is satisfied.
@@ -279,6 +283,55 @@ export function createMissions(): Mission[] {
       completed: false,
       validate: (outputs) => {
         return outputs.some(o => o.trim() === 'TXDQWXP');
+      },
+    },
+    // === SCIENTIFIC RESEARCH: SETI ===
+    {
+      id: 'seti_scan',
+      name: 'SETI: Star Survey',
+      description: 'Scan the stellar catalogue for anomalous signals from nearby stars.',
+      era: 'science',
+      hint: 'Use seti.catalogue() to get star data. Print stars with signal strength > 0.5.',
+      starterCode: '// Scan the stellar catalogue for alien signals\nlet stars = seti.catalogue()\n',
+      researchCredits: 8,
+      moneyReward: 5000,
+      prerequisites: ['sort_stocks'],
+      requiredResearch: 'remote_code_exec',
+      completed: false,
+      validate: (outputs) => {
+        return outputs.some(o => o.includes('Epsilon Eridani'));
+      },
+    },
+    {
+      id: 'seti_transmit',
+      name: 'SETI: Deep Space Array',
+      description: 'Build a $1,000,000 deep space array and transmit a signal to Epsilon Eridani.',
+      era: 'science',
+      hint: 'Call seti.transmit("Epsilon Eridani"). You need at least $1,000,000.',
+      starterCode: '// Transmit a signal to the anomalous star\n// WARNING: This costs $1,000,000!\n',
+      researchCredits: 15,
+      moneyReward: 0,
+      prerequisites: ['seti_scan'],
+      completed: false,
+      validate: (outputs) => {
+        return outputs.some(o => o.includes('Transmission sent'));
+      },
+    },
+    {
+      id: 'seti_decrypt',
+      name: 'SETI: Alien Decryption',
+      description: 'A reply from Epsilon Eridani has arrived! Decrypt the alien signal.',
+      era: 'science',
+      hint: 'Use seti.listen() to get the encrypted message. The hint mentions hydrogen (atomic mass 7). Try shifting each letter back by 7.',
+      starterCode: '// The aliens have replied! Decrypt their message.\nlet reply = seti.listen()\nprint("Status: " + reply.status)\nprint("Encrypted: " + reply.encrypted)\n// Hint: Caesar cipher with shift from hydrogen atomic mass\n',
+      researchCredits: 20,
+      moneyReward: 100000,
+      prerequisites: ['seti_transmit'],
+      requiredResearch: 'gpu_compute',
+      minYear: 2003,
+      completed: false,
+      validate: (outputs) => {
+        return outputs.some(o => o.includes('YOU ARE NOT ALONE'));
       },
     },
   ];

@@ -481,7 +481,7 @@ export class Sidebar {
       <div class="sb-tab-content" id="stab-docs" style="display:none;">
         <div class="sb-section docs-section">
           <h3>Terminal Reference</h3>
-          <p class="docs-intro">QuantumSrc exposes three modules: <code>sys</code>, <code>market</code>, and <code>sports</code>. All queries return native objects — no parsing needed.</p>
+          <p class="docs-intro">QuantumSrc exposes four modules: <code>sys</code>, <code>market</code>, <code>sports</code>, and <code>seti</code>. All queries return native objects — no parsing needed.</p>
 
           <div class="docs-group">
             <h4>sys — System Status</h4>
@@ -551,6 +551,21 @@ sports.wager("football", 100, {
            t[5].id, t[2].id, t[6].id, t[1].id],
   round4: [t[0].id]
 })</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
+          </div>
+
+          <div class="docs-group">
+            <h4>seti — Deep Space Scanning</h4>
+            <div class="docs-fn"><code>seti.catalogue()</code> <span class="docs-ret">array</span> <p>Stellar catalogue of nearby stars with signal readings.</p></div>
+            <pre class="docs-example">let stars = seti.catalogue()
+for (let s of stars) {
+  if (s.signal > 0.5) print(s.name + " ANOMALY: " + s.signal)
+}</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
+            <div class="docs-fn"><code>seti.scan(name)</code> <span class="docs-ret">object</span> <p>Deep scan a specific star. Returns frequency, pattern, and notes.</p></div>
+            <pre class="docs-example">let data = seti.scan("Epsilon Eridani")
+print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\u{1F4CB} Insert into editor</button>
+            <div class="docs-fn"><code>seti.transmit(name)</code> <span class="docs-ret">string</span> <p>Build deep space array and send signal. Costs $1,000,000.</p></div>
+            <div class="docs-fn"><code>seti.listen()</code> <span class="docs-ret">object</span> <p>Check for incoming replies from transmitted signals.</p></div>
+            <p style="color:#556677;font-size:10px;margin-top:4px;">Requires: Remote Code Execution research</p>
           </div>
 
           <div class="docs-group">

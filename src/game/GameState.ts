@@ -25,6 +25,8 @@ interface SaveData {
   stockMarket?: object;
   newsFeed?: object;
   sportsLeague?: object;
+  setiTransmitted?: boolean;
+  setiTransmitYear?: number;
 }
 
 export class GameState {
@@ -43,6 +45,10 @@ export class GameState {
   shop: Shop;
   sportsLeague: SportsLeague;
   missions: Mission[];
+
+  // SETI state
+  setiTransmitted = false;
+  setiTransmitYear = 0;
 
   private timeAccumulator = 0;
   private readonly TICK_RATE = 1.5; // Slowed 50% from 1s to 1.5s
@@ -118,6 +124,11 @@ export class GameState {
 
     for (const mission of this.missions) {
       if (mission.completed) continue;
+      if (mission.minYear && this.year < mission.minYear) continue;
+      if (mission.requiredResearch) {
+        const node = this.researchTree.find(n => n.id === mission.requiredResearch);
+        if (!node?.researched) continue;
+      }
       // Check prerequisites
       const prereqsMet = mission.prerequisites.every(
         pid => this.missions.find(m => m.id === pid)?.completed
@@ -139,6 +150,11 @@ export class GameState {
   getAvailableMissions(): Mission[] {
     return this.missions.filter(m => {
       if (m.completed) return false;
+      if (m.minYear && this.year < m.minYear) return false;
+      if (m.requiredResearch) {
+        const node = this.researchTree.find(n => n.id === m.requiredResearch);
+        if (!node?.researched) return false;
+      }
       return m.prerequisites.every(
         pid => this.missions.find(m2 => m2.id === pid)?.completed
       );
@@ -160,6 +176,8 @@ export class GameState {
       stockMarket: this.stockMarket.serialize(),
       newsFeed: this.newsFeed.serialize(),
       sportsLeague: this.sportsLeague.serialize(),
+      setiTransmitted: this.setiTransmitted,
+      setiTransmitYear: this.setiTransmitYear,
     };
 
     for (const node of this.researchTree) {
@@ -221,6 +239,10 @@ export class GameState {
           // Don't re-apply — hardware state already loaded
         }
       }
+
+      // Restore SETI state
+      if (data.setiTransmitted) this.setiTransmitted = true;
+      if (data.setiTransmitYear) this.setiTransmitYear = data.setiTransmitYear;
 
       // Restore stock market state
       if (data.stockMarket) {

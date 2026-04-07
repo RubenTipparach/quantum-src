@@ -369,6 +369,124 @@ export class Sandbox {
 
     ctx.setProp(ctx.global, 'sports', sportsObj);
     sportsObj.dispose();
+
+    // ── seti — deep space scanning ──
+
+    const setiObj = ctx.newObject();
+
+    fn(setiObj, 'catalogue', () => {
+      return self.jsonToHandle(ctx, [
+        { name: 'Alpha Centauri', distance: 4.37, type: 'G2V', signal: 0.02 },
+        { name: "Barnard's Star", distance: 5.96, type: 'M4V', signal: 0.01 },
+        { name: 'Wolf 359', distance: 7.86, type: 'M6.5V', signal: 0.00 },
+        { name: 'Lalande 21185', distance: 8.29, type: 'M2V', signal: 0.03 },
+        { name: 'Sirius', distance: 8.60, type: 'A1V', signal: 0.01 },
+        { name: 'Ross 154', distance: 9.69, type: 'M3.5V', signal: 0.00 },
+        { name: 'Epsilon Eridani', distance: 10.48, type: 'K2V', signal: 0.87 },
+        { name: 'Ross 128', distance: 11.01, type: 'M4V', signal: 0.04 },
+        { name: '61 Cygni', distance: 11.41, type: 'K5V', signal: 0.01 },
+        { name: 'Tau Ceti', distance: 11.91, type: 'G8V', signal: 0.05 },
+      ]);
+    });
+
+    fn(setiObj, 'scan', (nameHandle) => {
+      const name = ctx.dump(nameHandle) as string;
+      if (typeof name !== 'string') return ctx.newString('Usage: seti.scan("Star Name")');
+      const catalogue: Record<string, { distance: number; type: string; signal: number }> = {
+        'Alpha Centauri': { distance: 4.37, type: 'G2V', signal: 0.02 },
+        "Barnard's Star": { distance: 5.96, type: 'M4V', signal: 0.01 },
+        'Wolf 359': { distance: 7.86, type: 'M6.5V', signal: 0.00 },
+        'Lalande 21185': { distance: 8.29, type: 'M2V', signal: 0.03 },
+        'Sirius': { distance: 8.60, type: 'A1V', signal: 0.01 },
+        'Ross 154': { distance: 9.69, type: 'M3.5V', signal: 0.00 },
+        'Epsilon Eridani': { distance: 10.48, type: 'K2V', signal: 0.87 },
+        'Ross 128': { distance: 11.01, type: 'M4V', signal: 0.04 },
+        '61 Cygni': { distance: 11.41, type: 'K5V', signal: 0.01 },
+        'Tau Ceti': { distance: 11.91, type: 'G8V', signal: 0.05 },
+      };
+      const star = catalogue[name];
+      if (!star) return ctx.newString(`Unknown star: ${name}`);
+      const result: Record<string, unknown> = {
+        name,
+        distance: star.distance,
+        type: star.type,
+        signal: star.signal,
+        frequency: '1420.405 MHz',
+      };
+      if (star.signal > 0.5) {
+        result.pattern = 'REPEATING';
+        result.note = 'Strong non-natural signal detected. Possible intelligent origin.';
+      } else {
+        result.pattern = star.signal > 0 ? 'NOISE' : 'NONE';
+        result.note = 'No anomalous signals.';
+      }
+      return self.jsonToHandle(ctx, result);
+    });
+
+    fn(setiObj, 'transmit', (nameHandle) => {
+      const name = ctx.dump(nameHandle) as string;
+      if (typeof name !== 'string') return ctx.newString('Usage: seti.transmit("Star Name")');
+      if (name !== 'Epsilon Eridani') {
+        const entry: ConsoleEntry = { type: 'log', text: `No anomalous signal from ${name}. Transmission aborted.` };
+        self.consoleBuffer.push(entry);
+        self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
+        return ctx.newString(entry.text);
+      }
+      if (state.setiTransmitted) {
+        const entry: ConsoleEntry = { type: 'log', text: 'Transmission already sent to Epsilon Eridani.' };
+        self.consoleBuffer.push(entry);
+        self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
+        return ctx.newString(entry.text);
+      }
+      const cost = 1000000;
+      if (state.money < cost) {
+        const entry: ConsoleEntry = { type: 'log', text: `Insufficient funds. Deep space array costs $1,000,000. Have $${state.money.toLocaleString()}.` };
+        self.consoleBuffer.push(entry);
+        self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
+        return ctx.newString(entry.text);
+      }
+      state.money -= cost;
+      state.setiTransmitted = true;
+      state.setiTransmitYear = state.year;
+      const eta = Math.round(state.year + 10.48 * 2);
+      const entry: ConsoleEntry = { type: 'log', text: `Transmission sent to Epsilon Eridani (10.48 ly). Array cost: $1,000,000. Earliest reply: ~${eta}` };
+      self.consoleBuffer.push(entry);
+      self.outputMap.push({ entry, stepIndex: self.executionTrace.length - 1 });
+      return ctx.newString(entry.text);
+    });
+
+    fn(setiObj, 'listen', () => {
+      if (!state.setiTransmitted) {
+        return ctx.newString('No active transmissions. Use seti.transmit() first.');
+      }
+      if (state.year < 2003) {
+        const remaining = 2003 - state.year;
+        return self.jsonToHandle(ctx, {
+          status: 'WAITING',
+          message: `Signal in transit. Estimated ${remaining} years until reply.`,
+          targetYear: 2003,
+        });
+      }
+      // The alien reply — an encrypted message using a shift cipher (key = 7)
+      const plaintext = 'WE HAVE WATCHED YOUR STAR FOR AGES. YOU ARE NOT ALONE. SEEK THE PATTERN IN PI.';
+      const encrypted = plaintext.split('').map(c => {
+        if (c >= 'A' && c <= 'Z') {
+          return String.fromCharCode(((c.charCodeAt(0) - 65 + 7) % 26) + 65);
+        }
+        return c;
+      }).join('');
+      return self.jsonToHandle(ctx, {
+        status: 'SIGNAL_RECEIVED',
+        source: 'Epsilon Eridani',
+        distance: 10.48,
+        encrypted,
+        encoding: 'SHIFTED_ALPHA',
+        hint: 'Frequency offset suggests a Caesar cipher. The hydrogen line number (atomic number 1, mass 7) may hold the key.',
+      });
+    });
+
+    ctx.setProp(ctx.global, 'seti', setiObj);
+    setiObj.dispose();
   }
 
   isReady(): boolean {
