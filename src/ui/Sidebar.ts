@@ -115,6 +115,14 @@ export class Sidebar {
         return;
       }
 
+      // Docs back-to-top button
+      if (target.closest('#docs-back-top')) {
+        e.preventDefault();
+        const top = this.el.querySelector('#docs-top');
+        if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+
       // Shop buttons
       const shopBtn = target.closest('.shop-btn') as HTMLElement | null;
       if (shopBtn) {
@@ -801,22 +809,22 @@ export class Sidebar {
         </div>
       </div>
 
-      <div class="sb-tab-content" id="stab-docs" style="display:none;">
+      <div class="sb-tab-content" id="stab-docs" style="display:none;position:relative;">
         <div class="sb-section docs-section">
-          <h3>Terminal Reference</h3>
+          <h3 id="docs-top">Terminal Reference</h3>
 
-          <div class="docs-toc" style="margin-bottom:10px;padding:8px;background:#0a1220;border:1px solid #1a2a3a;border-radius:4px;">
-            <div style="color:#668877;font-size:10px;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Index</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px 8px;">
-              <a class="docs-toc-link" href="#docs-sys" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">sys</a>
-              <a class="docs-toc-link" href="#docs-market" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">market</a>
-              <a class="docs-toc-link" href="#docs-sports" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">sports</a>
-              <a class="docs-toc-link" href="#docs-seti" style="font-size:11px;cursor:pointer;text-decoration:none;" id="toc-seti">seti</a>
-              <a class="docs-toc-link" href="#docs-output" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">output</a>
-              <a class="docs-toc-link" href="#docs-tickers" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">tickers</a>
-              <a class="docs-toc-link" href="#docs-leagues" style="color:#88ccaa;font-size:11px;cursor:pointer;text-decoration:none;">leagues</a>
-            </div>
+          <div class="docs-toc" style="margin-bottom:12px;">
+            <div style="color:#668877;font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Contents</div>
+            <a class="docs-toc-link" href="#docs-sys"><span style="color:#88ccaa;">sys</span><span style="color:#445566;">System status &amp; hardware info</span></a>
+            <a class="docs-toc-link" href="#docs-market"><span style="color:#88ccaa;">market</span><span style="color:#445566;">Stock trading &amp; news feed</span></a>
+            <a class="docs-toc-link" href="#docs-sports"><span style="color:#88ccaa;">sports</span><span style="color:#445566;">League betting &amp; brackets</span></a>
+            <a class="docs-toc-link" href="#docs-seti" id="toc-seti"><span>seti</span><span style="color:#445566;">Deep space scanning</span></a>
+            <a class="docs-toc-link" href="#docs-output"><span style="color:#88ccaa;">output</span><span style="color:#445566;">Print to terminal</span></a>
+            <a class="docs-toc-link" href="#docs-tickers"><span style="color:#88ccaa;">tickers</span><span style="color:#445566;">Stock symbol reference</span></a>
+            <a class="docs-toc-link" href="#docs-leagues"><span style="color:#88ccaa;">leagues</span><span style="color:#445566;">League ID reference</span></a>
           </div>
+
+          <button id="docs-back-top" style="display:none;position:sticky;bottom:8px;left:50%;transform:translateX(-50%);z-index:50;background:#0c1824ee;border:1px solid #1a3a2a;color:#668877;padding:4px 14px;border-radius:12px;cursor:pointer;font-size:10px;backdrop-filter:blur(4px);">&#9650; Back to top</button>
 
           <div class="docs-group" id="docs-sys">
             <h4>sys — System Status</h4>
@@ -945,6 +953,15 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
         if (panel) panel.style.display = 'block';
       });
     });
+
+    // Docs back-to-top: show when scrolled past TOC
+    const docsPanel = this.el.querySelector('#stab-docs') as HTMLElement | null;
+    const backTopBtn = this.el.querySelector('#docs-back-top') as HTMLElement | null;
+    if (docsPanel && backTopBtn) {
+      docsPanel.addEventListener('scroll', () => {
+        backTopBtn.style.display = docsPanel.scrollTop > 150 ? '' : 'none';
+      });
+    }
 
     this.el.querySelector('#btn-view-tree')?.addEventListener('click', () => {
       this.showResearchModal();
