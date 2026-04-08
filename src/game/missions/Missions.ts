@@ -116,13 +116,12 @@ export function createMissions(): Mission[] {
       prerequisites: ['read_market'],
       completed: false, readyToCollect: false,
       validate: (outputs, gs) => {
-        // Find cheapest symbol from snapshot
-        let cheapest = '';
-        let cheapestPrice = Infinity;
-        for (const [sym, price] of Object.entries(gs.stockPrices)) {
-          if (price < cheapestPrice) { cheapestPrice = price; cheapest = sym; }
-        }
-        return outputs.some(o => o.trim() === cheapest);
+        // Find cheapest price, then accept ANY symbol tied at that price
+        const minPrice = Math.min(...Object.values(gs.stockPrices));
+        const cheapestSyms = new Set(
+          Object.entries(gs.stockPrices).filter(([, p]) => p === minPrice).map(([s]) => s)
+        );
+        return outputs.some(o => cheapestSyms.has(o.trim()));
       },
     },
     {
@@ -183,13 +182,10 @@ export function createMissions(): Mission[] {
       prerequisites: ['find_cheapest', 'first_buy'],
       completed: false, readyToCollect: false,
       validate: (outputs, gs) => {
-        // Find cheapest symbol from snapshot
-        let cheapest = '';
-        let cheapestPrice = Infinity;
-        for (const [sym, price] of Object.entries(gs.stockPrices)) {
-          if (price < cheapestPrice) { cheapestPrice = price; cheapest = sym; }
-        }
-        return outputs.some(o => o.includes('Acquired') && o.includes('10') && o.includes(cheapest));
+        // Accept any symbol tied at the cheapest price
+        const minPrice = Math.min(...Object.values(gs.stockPrices));
+        const cheapestSyms = Object.entries(gs.stockPrices).filter(([, p]) => p === minPrice).map(([s]) => s);
+        return outputs.some(o => o.includes('Acquired') && o.includes('10') && cheapestSyms.some(sym => o.includes(sym)));
       },
     },
     {
