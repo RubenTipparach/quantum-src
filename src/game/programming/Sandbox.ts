@@ -35,13 +35,22 @@ function instrumentCode(code: string): string {
 
     if (trimmed === '' || trimmed.startsWith('//')) return line;
 
-    // Don't tick continuation lines
+    // Don't tick continuation lines or lone braces — inserting __tick before
+    // a '{' that belongs to an if/for/while on the previous line would break
+    // the control flow (the if body becomes __tick, and the { block runs unconditionally)
     if (CONTINUATION_RE.test(trimmed)) return line;
+    if (trimmed === '{' || trimmed === '}') return line;
 
     // For loop headers ending with {, inject a tick inside the block too
     // so each iteration highlights the loop line
     if (LOOP_RE.test(trimmed) && trimmed.endsWith('{')) {
       return `__tick(${lineNum}); ${line} __tick(${lineNum});`;
+    }
+
+    // Don't tick lines that are just a control-flow keyword with no body yet
+    // e.g. "if(condition)" on its own line — the body is on the next line
+    if (/^(if|else if)\s*\(.*\)\s*$/.test(trimmed) || trimmed === 'else') {
+      return `__tick(${lineNum}); ${line}`;
     }
 
     return `__tick(${lineNum}); ${line}`;
