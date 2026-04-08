@@ -204,17 +204,6 @@ export class GameEngine {
       return;
     }
 
-    // Check missions immediately after execution (before visual replay)
-    // so results don't depend on waiting for the step-through animation
-    const allOutputs = trace.outputs.map(o => o.entry.text);
-    const readyMissions = this.gameState.checkMissions(allOutputs);
-    for (const m of readyMissions) {
-      if (!m.savedCode) {
-        m.savedCode = code;
-        this.gameState.save();
-      }
-    }
-
     this.executing = true;
     this.runBtn.textContent = 'STOP';
     this.runBtn.style.opacity = '1';
@@ -254,7 +243,14 @@ export class GameEngine {
 
         this.consoleOutput.appendSystem('--- DONE ---');
 
-        // Show toast for missions that became ready (checked before replay)
+        const allOutputs = trace.outputs.map(o => o.entry.text);
+        const readyMissions = this.gameState.checkMissions(allOutputs);
+        for (const m of readyMissions) {
+          if (!m.savedCode) {
+            m.savedCode = code;
+            this.gameState.save();
+          }
+        }
         if (readyMissions.length > 0) {
           this.showCollectToast(readyMissions);
         }
