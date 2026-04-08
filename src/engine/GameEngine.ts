@@ -197,6 +197,12 @@ export class GameEngine {
     // Snapshot the lines at run time (editor can change freely after this)
     const snapshotLines = code.split('\n');
 
+    // Snapshot stock prices at execution time for mission validation
+    const priceSnapshot: Record<string, number> = {};
+    for (const s of this.gameState.stockMarket.stocks) {
+      priceSnapshot[s.symbol] = Math.round(s.price * 100) / 100;
+    }
+
     const trace = this.sandbox.executeTraced(code, this.gameState);
 
     if (trace.steps.length === 0 && trace.error) {
@@ -244,7 +250,7 @@ export class GameEngine {
         this.consoleOutput.appendSystem('--- DONE ---');
 
         const allOutputs = trace.outputs.map(o => o.entry.text);
-        const readyMissions = this.gameState.checkMissions(allOutputs);
+        const readyMissions = this.gameState.checkMissions(allOutputs, priceSnapshot);
         for (const m of readyMissions) {
           if (!m.savedCode) {
             m.savedCode = code;

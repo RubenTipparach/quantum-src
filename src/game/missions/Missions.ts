@@ -36,6 +36,8 @@ export interface MissionGameRef {
   year: number;
   portfolio: Map<string, number>;
   stockSymbols: string[];
+  /** Stock prices snapshotted at execution time (symbol → price) */
+  stockPrices: Record<string, number>;
 }
 
 export function createMissions(): Mission[] {
@@ -113,8 +115,14 @@ export function createMissions(): Mission[] {
       moneyReward: 300,
       prerequisites: ['read_market'],
       completed: false, readyToCollect: false,
-      validate: (outputs, _gs) => {
-        return outputs.some(o => /^[A-Z]{4}$/.test(o.trim()));
+      validate: (outputs, gs) => {
+        // Find cheapest symbol from snapshot
+        let cheapest = '';
+        let cheapestPrice = Infinity;
+        for (const [sym, price] of Object.entries(gs.stockPrices)) {
+          if (price < cheapestPrice) { cheapestPrice = price; cheapest = sym; }
+        }
+        return outputs.some(o => o.trim() === cheapest);
       },
     },
     {
@@ -128,10 +136,13 @@ export function createMissions(): Mission[] {
       moneyReward: 400,
       prerequisites: ['read_market'],
       completed: false, readyToCollect: false,
-      validate: (outputs) => {
+      validate: (outputs, gs) => {
+        const expectedSum = Object.values(gs.stockPrices).reduce((a, b) => a + b, 0);
         return outputs.some(o => {
           const n = parseFloat(o.replace(/[$,]/g, ''));
-          return !isNaN(n) && n > 10;
+          if (isNaN(n) || n <= 0) return false;
+          // Allow ±5% tolerance since prices may tick between scan and print
+          return Math.abs(n - expectedSum) / expectedSum < 0.05;
         });
       },
     },
@@ -146,9 +157,18 @@ export function createMissions(): Mission[] {
       moneyReward: 600,
       prerequisites: ['find_cheapest', 'sum_market'],
       completed: false, readyToCollect: false,
-      validate: (outputs) => {
-        const syms = outputs.filter(o => /^[A-Z]{4}$/.test(o.trim()));
-        return syms.length >= 5;
+      validate: (outputs, gs) => {
+        // Build expected sorted order from snapshot
+        const sorted = Object.entries(gs.stockPrices)
+          .sort((a, b) => a[1] - b[1])
+          .map(([sym]) => sym);
+        const printed = outputs.filter(o => /^[A-Z]{4}$/.test(o.trim())).map(o => o.trim());
+        if (printed.length < 5) return false;
+        // Verify the first N printed symbols match sorted order
+        for (let i = 0; i < printed.length; i++) {
+          if (printed[i] !== sorted[i]) return false;
+        }
+        return true;
       },
     },
     {
@@ -162,7 +182,15 @@ export function createMissions(): Mission[] {
       moneyReward: 800,
       prerequisites: ['find_cheapest', 'first_buy'],
       completed: false, readyToCollect: false,
-      validate: (outputs) => outputs.some(o => o.includes('Acquired') && o.includes('10')),
+      validate: (outputs, gs) => {
+        // Find cheapest symbol from snapshot
+        let cheapest = '';
+        let cheapestPrice = Infinity;
+        for (const [sym, price] of Object.entries(gs.stockPrices)) {
+          if (price < cheapestPrice) { cheapestPrice = price; cheapest = sym; }
+        }
+        return outputs.some(o => o.includes('Acquired') && o.includes('10') && o.includes(cheapest));
+      },
     },
     {
       id: 'portfolio_value',
@@ -175,10 +203,20 @@ export function createMissions(): Mission[] {
       moneyReward: 1000,
       prerequisites: ['buy_sell', 'sum_market'],
       completed: false, readyToCollect: false,
-      validate: (outputs) => {
+      validate: (outputs, gs) => {
+        // Calculate expected portfolio value from snapshot prices
+        let expectedValue = 0;
+        for (const [sym, qty] of gs.portfolio) {
+          const price = gs.stockPrices[sym] ?? 0;
+          expectedValue += price * qty;
+        }
         return outputs.some(o => {
           const n = parseFloat(o.replace(/[$,]/g, ''));
-          return !isNaN(n) && n >= 0;
+          if (isNaN(n)) return false;
+          // Empty portfolio: accept 0
+          if (expectedValue === 0) return n === 0;
+          // Allow ±5% tolerance
+          return Math.abs(n - expectedValue) / expectedValue < 0.05;
         });
       },
     },

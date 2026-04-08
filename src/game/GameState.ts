@@ -115,13 +115,14 @@ export class GameState {
   }
 
   /** Check missions and mark as ready to collect (does NOT auto-complete) */
-  checkMissions(outputs: string[]): Mission[] {
+  checkMissions(outputs: string[], stockSnapshot?: Record<string, number>): Mission[] {
     const ready: Mission[] = [];
     const gameRef = {
       money: this.money,
       year: this.year,
       portfolio: this.portfolio,
       stockSymbols: this.stockMarket.stocks.map(s => s.symbol),
+      stockPrices: stockSnapshot ?? Object.fromEntries(this.stockMarket.stocks.map(s => [s.symbol, Math.round(s.price * 100) / 100])),
     };
 
     for (const mission of this.missions) {
