@@ -99,9 +99,11 @@ export function createMissions(): Mission[] {
       moneyReward: 200,
       prerequisites: ['hello_world'],
       completed: false, readyToCollect: false,
-      validate: (outputs) => {
-        const priceLines = outputs.filter(o => o.includes('$'));
-        return priceLines.length >= 5;
+      validate: (outputs, gs) => {
+        // Count outputs that contain a stock symbol — means they printed info about that stock
+        const syms = Object.keys(gs.stockPrices);
+        const matched = syms.filter(sym => outputs.some(o => o.includes(sym)));
+        return matched.length >= 5;
       },
     },
     {
@@ -137,10 +139,13 @@ export function createMissions(): Mission[] {
       validate: (outputs, gs) => {
         const expectedSum = Object.values(gs.stockPrices).reduce((a, b) => a + b, 0);
         return outputs.some(o => {
-          const n = parseFloat(o.replace(/[$,]/g, ''));
-          if (isNaN(n) || n <= 0) return false;
-          // Allow ±5% tolerance since prices may tick between scan and print
-          return Math.abs(n - expectedSum) / expectedSum < 0.05;
+          // Extract any number from the output (strip $, commas, surrounding text)
+          const match = o.match(/[\d.]+/);
+          if (!match) return false;
+          const n = parseFloat(match[0]);
+          if (isNaN(n)) return false;
+          // Allow ±10% tolerance or within 0.50 absolute (handles tiny penny stock sums)
+          return Math.abs(n - expectedSum) < 0.50 || Math.abs(n - expectedSum) / expectedSum < 0.10;
         });
       },
     },
@@ -160,10 +165,15 @@ export function createMissions(): Mission[] {
         const sorted = Object.entries(gs.stockPrices)
           .sort((a, b) => a[1] - b[1])
           .map(([sym]) => sym);
-        const printed = outputs.filter(o => /^[A-Z]{4}$/.test(o.trim())).map(o => o.trim());
-        if (printed.length < 5) return false;
-        // Verify the first N printed symbols match sorted order
-        for (let i = 0; i < printed.length; i++) {
+        // Extract the first 4-letter symbol from each output line
+        const printed: string[] = [];
+        for (const o of outputs) {
+          const match = o.match(/\b([A-Z]{4})\b/);
+          if (match) printed.push(match[1]!);
+        }
+        if (printed.length < sorted.length) return false;
+        // Verify printed order matches sorted order
+        for (let i = 0; i < sorted.length; i++) {
           if (printed[i] !== sorted[i]) return false;
         }
         return true;
