@@ -6,8 +6,8 @@ The player writes code that executes in a QuickJS sandbox. Execution happens ins
 
 **Critical rule: Visual replay MUST sync with data.**
 
-- The market simulation is intrinsic and independent of code execution. The market ticks on its own clock via the game loop (`GameState.update(delta)`), NOT inside `__tick()`. The market does NOT advance because code runs — it advances because time passes. Code execution and market simulation are completely decoupled independent systems.
-- When player code calls `market.scan()`, it reads the market state at that instant. During visual replay, the game loop continues running so the market naturally advances in real time alongside the replay.
+- **DO NOT COUPLE code execution with game simulation.** The game simulation (market, sports, news feed, SETI, and any future economic/world systems) is a completely separate system from code execution. These simulations run on their own clock via the game loop (`GameState.update(delta)`). They advance because time passes, NOT because code runs. Never tick, advance, or mutate simulation state inside `__tick()` or any code execution path.
+- When player code calls `market.scan()`, `sports.leagues()`, `seti.listen()`, etc., it reads the simulation state at that instant — a snapshot. The simulation continues independently regardless of whether code is running.
 - The visual step-by-step replay in the editor MUST play back each step one at a time. This is intentional game design — the player is watching their program "run" on their in-game computer. Never batch, skip, or compress steps.
 - **Replay speed is ONLY governed by in-game hardware upgrades** (CPU clock speed, GPU cores, quantum, subatomic). This is a core game mechanic — buying better hardware makes your code run faster. Never adjust replay speed programmatically. The player earns faster execution through gameplay progression.
 - Mission validation happens in `onDone` after the visual replay completes — not before. The player watches their code run, sees the results, THEN gets the mission ready notification.
