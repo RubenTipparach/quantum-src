@@ -118,10 +118,9 @@ export function createMissions(): Mission[] {
       validate: (outputs, gs) => {
         // Find cheapest price, then accept ANY symbol tied at that price
         const minPrice = Math.min(...Object.values(gs.stockPrices));
-        const cheapestSyms = new Set(
-          Object.entries(gs.stockPrices).filter(([, p]) => p === minPrice).map(([s]) => s)
-        );
-        return outputs.some(o => cheapestSyms.has(o.trim()));
+        const cheapestSyms = Object.entries(gs.stockPrices)
+          .filter(([, p]) => p === minPrice).map(([s]) => s);
+        return outputs.some(o => cheapestSyms.some(sym => o.includes(sym)));
       },
     },
     {
