@@ -1,13 +1,19 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: { origin: '*' },
+});
 
-app.use(express.static(path.join(__dirname, 'public')));
+// In production (docker build), serve the Vite build output
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // ─────────────────────────────────────────────────────────────
 //  CONSTANTS

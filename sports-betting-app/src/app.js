@@ -2,6 +2,8 @@
    Sports Bracket Betting - Client
    ───────────────────────────────────────────────────────────── */
 
+import { io } from 'socket.io-client';
+
 const socket = io();
 
 let myId = null;
@@ -435,7 +437,6 @@ function propagatePicks(sportId) {
   // For rounds 1-3, if both feeder matches from previous round have picks,
   // auto-populate this round's match teams and pre-select higher seed
   for (let r = 1; r < 4; r++) {
-    const prevRound = sport.bracket[r - 1];
     const thisRound = sport.bracket[r];
 
     for (let m = 0; m < thisRound.matches.length; m++) {
@@ -445,14 +446,10 @@ function propagatePicks(sportId) {
       const pick1 = localPicks[sportId][r - 1][feeder1];
       const pick2 = localPicks[sportId][r - 1][feeder2];
 
-      // Only set if both feeders have picks and this match hasn't been manually set
+      // Only set if both feeders have picks
       if (pick1 && pick2) {
-        // Update the bracket display teams for this round
         thisRound.matches[m].team1Id = pick1;
         thisRound.matches[m].team2Id = pick2;
-
-        // If no pick yet for this match, don't auto-select
-        // (user must choose)
       }
     }
   }

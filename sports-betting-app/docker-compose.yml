@@ -1,6 +1,5 @@
-version: "3.8"
-
 services:
+  # Production: Vite builds static files, Express serves everything
   sports-betting:
     build: .
     ports:
@@ -8,3 +7,20 @@ services:
     environment:
       - PORT=3000
     restart: unless-stopped
+
+  # Dev: Vite dev server with HMR + Express backend
+  # Run with: docker compose up sports-betting-dev
+  sports-betting-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - PORT=3000
+    profiles:
+      - dev
