@@ -263,6 +263,7 @@ const MISSION_NEWS: Record<string, { headline: string; targets: string[]; impact
   news_trader:       { headline: 'BREAKING: Algorithm detected front-running news events — regulators take notice', targets: ['DATA', 'BNKR'], impact: [-0.03, 0.03], duration: [10, 18] },
   sector_sweep:      { headline: 'Coordinated sector accumulation detected — market makers adjust spreads', targets: [], impact: [0.02, 0.05], duration: [8, 15] },
   penny_flipper:     { headline: 'High-frequency penny stock arbitrage raises red flags at SEC', targets: [], impact: [-0.02, 0.02], duration: [6, 12] },
+  profit_10x:        { headline: 'Mysterious trader posts 10 consecutive winning trades — Wall Street takes notice', targets: ['BNKR', 'DATA'], impact: [0.03, 0.06], duration: [10, 18] },
   pump_dump:         { headline: 'ALERT: Pump-and-dump scheme detected! SEC opens investigation', targets: [], impact: [-0.08, -0.03], duration: [15, 25] },
   market_crash:      { headline: 'MARKET PANIC: Mass liquidation triggers circuit breakers across exchanges', targets: [], impact: [-0.12, -0.06], duration: [20, 35] },
   insider_trading:   { headline: 'SCANDAL: Insider trading ring busted — markets reel from confidence crisis', targets: ['BNKR', 'DATA', 'CPUX'], impact: [-0.10, -0.04], duration: [18, 30] },

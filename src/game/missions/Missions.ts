@@ -269,6 +269,27 @@ export function createMissions(): Mission[] {
       },
     },
     {
+      id: 'profit_10x',
+      name: 'Ten-Bagger',
+      description: 'Make a profit 10 times: buy cheap, sell high. Print "PROFIT" after each profitable sale.',
+      era: 'market',
+      hint: 'Buy a stock, sell it for more than you paid. The sell output shows the price — compare it to your buy price. Print "PROFIT" each time you profit.',
+      starterCode: '// Make 10 profitable trades\nlet stocks = market.scan()\n// Buy low, sell high, print PROFIT each time\n',
+      researchCredits: 10,
+      moneyReward: 8000,
+      prerequisites: ['penny_flipper'],
+      completed: false, readyToCollect: false,
+      validate: (outputs) => {
+        // Count the number of "PROFIT" prints
+        const profits = outputs.filter(o => o.trim() === 'PROFIT');
+        if (profits.length < 10) return false;
+        // Verify there are at least 10 buy+sell pairs
+        const buys = outputs.filter(o => o.includes('Acquired'));
+        const sells = outputs.filter(o => o.includes('Sold'));
+        return buys.length >= 10 && sells.length >= 10;
+      },
+    },
+    {
       id: 'pump_dump',
       name: 'Pump & Dump',
       description: 'Buy 50 shares of the cheapest stock, print "PUMP", then sell all 50 and print "DUMP".',
