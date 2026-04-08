@@ -1,0 +1,13 @@
+{
+  "name": "sports-betting-party",
+  "version": "1.0.0",
+  "description": "Multiplayer sports bracket betting party game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4"
+  }
+}

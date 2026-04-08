@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sports Bracket Betting</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- JOIN SCREEN -->
+  <div id="join-screen" class="screen active">
+    <div class="join-box">
+      <h1>Sports Bracket Betting</h1>
+      <p class="subtitle">Multiplayer bracket prediction party game</p>
+      <input type="text" id="player-name" placeholder="Enter your name" maxlength="20" autofocus>
+      <button id="join-btn" class="btn btn-primary">Join Game</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen" class="screen">
+    <!-- Top bar -->
+    <header id="top-bar">
+      <div class="logo">Sports Bracket Betting</div>
+      <div id="phase-badge" class="phase-badge">BETTING</div>
+      <div id="player-info"></div>
+    </header>
+
+    <!-- Players sidebar -->
+    <aside id="players-panel">
+      <h3>Players</h3>
+      <ul id="player-list"></ul>
+      <div id="ready-section">
+        <button id="ready-btn" class="btn btn-success">Lock In & Ready</button>
+        <button id="unready-btn" class="btn btn-secondary" style="display:none">Cancel Ready</button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main id="main-content">
+      <!-- Sport tabs -->
+      <nav id="sport-tabs"></nav>
+
+      <!-- Wager input -->
+      <div id="wager-section">
+        <label for="wager-input">Wager per round: $</label>
+        <input type="number" id="wager-input" value="100" min="100" step="100">
+      </div>
+
+      <!-- Bracket area -->
+      <div id="bracket-container"></div>
+
+      <!-- Countdown overlay -->
+      <div id="countdown-overlay" class="overlay" style="display:none">
+        <div class="overlay-content">
+          <h2>All Players Ready!</h2>
+          <div id="countdown-number" class="countdown-number">5</div>
+          <p>Simulation starting...</p>
+        </div>
+      </div>
+
+      <!-- Simulation log -->
+      <div id="sim-log" style="display:none">
+        <h3>Live Simulation</h3>
+        <div id="sim-log-entries"></div>
+      </div>
+    </main>
+
+    <!-- Results overlay -->
+    <div id="results-overlay" class="overlay" style="display:none">
+      <div class="results-content">
+        <h2>Season Results</h2>
+        <div id="leaderboard"></div>
+        <div id="detailed-results"></div>
+        <button id="new-season-btn" class="btn btn-primary">New Season</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
