@@ -150,36 +150,6 @@ export function createMissions(): Mission[] {
       },
     },
     {
-      id: 'sort_stocks',
-      name: 'Stock Sorter',
-      description: 'Print all stock symbols sorted by price, cheapest first.',
-      era: 'market',
-      hint: 'Use Array.sort() to sort by price, then print each symbol.',
-      starterCode: '// Sort stocks by price (ascending) and print symbols\nlet stocks = market.scan();\n',
-      researchCredits: 5,
-      moneyReward: 600,
-      prerequisites: ['find_cheapest', 'sum_market'],
-      completed: false, readyToCollect: false,
-      validate: (outputs, gs) => {
-        // Build expected sorted order from snapshot
-        const sorted = Object.entries(gs.stockPrices)
-          .sort((a, b) => a[1] - b[1])
-          .map(([sym]) => sym);
-        // Extract the first 4-letter symbol from each output line
-        const printed: string[] = [];
-        for (const o of outputs) {
-          const match = o.match(/\b([A-Z]{4})\b/);
-          if (match) printed.push(match[1]!);
-        }
-        if (printed.length < sorted.length) return false;
-        // Verify printed order matches sorted order
-        for (let i = 0; i < sorted.length; i++) {
-          if (printed[i] !== sorted[i]) return false;
-        }
-        return true;
-      },
-    },
-    {
       id: 'buy_cheapest',
       name: 'Value Investor',
       description: 'Write a program that finds the cheapest stock and buys 10 shares of it.',
@@ -249,7 +219,7 @@ export function createMissions(): Mission[] {
       starterCode: '// Pick a sector and buy 3 shares of every stock in it\nlet stocks = market.scan()\n',
       researchCredits: 6,
       moneyReward: 3000,
-      prerequisites: ['sort_stocks'],
+      prerequisites: ['find_cheapest', 'sum_market'],
       completed: false, readyToCollect: false,
       validate: (outputs) => {
         const buys = outputs.filter(o => o.includes('Acquired') && o.includes('3'));
@@ -367,7 +337,7 @@ export function createMissions(): Mission[] {
       starterCode: '// Print the first 20 Fibonacci numbers\n',
       researchCredits: 8,
       moneyReward: 5000,
-      prerequisites: ['sort_stocks'],
+      prerequisites: ['find_cheapest', 'sum_market'],
       completed: false, readyToCollect: false,
       validate: (outputs) => {
         const expected = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181];
@@ -387,7 +357,7 @@ export function createMissions(): Mission[] {
       starterCode: '// For each stock, print SYMBOL: ABOVE or SYMBOL: BELOW based on $15 threshold\nlet stocks = market.scan();\n',
       researchCredits: 6,
       moneyReward: 3000,
-      prerequisites: ['sort_stocks'],
+      prerequisites: ['find_cheapest', 'sum_market'],
       completed: false, readyToCollect: false,
       validate: (outputs) => {
         const valid = outputs.filter(o => /^[A-Z]{4}: (ABOVE|BELOW)$/.test(o.trim()));
@@ -471,7 +441,7 @@ export function createMissions(): Mission[] {
       starterCode: '// Scan the stellar catalogue for alien signals\nlet stars = seti.catalogue()\n',
       researchCredits: 8,
       moneyReward: 5000,
-      prerequisites: ['sort_stocks'],
+      prerequisites: ['find_cheapest', 'sum_market'],
       requiredResearch: 'seti_program',
       completed: false, readyToCollect: false,
       validate: (outputs) => {
