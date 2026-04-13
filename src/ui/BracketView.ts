@@ -311,7 +311,7 @@ export class BracketView {
       for (let m = 0; m < round.matches.length; m++) {
         const match = round.matches[m]!;
         const pos = positions[r]![m]!;
-        BracketView.drawMatch(ctx, pos.x, pos.y, match, teamMap, sport.playerBets, r);
+        BracketView.drawMatch(ctx, pos.x, pos.y, match, teamMap, sport.playerBets, r, COLORS);
       }
     }
   }
@@ -323,6 +323,7 @@ export class BracketView {
     teamMap: Map<string, Team>,
     bets: PlayerBets | null,
     roundIndex: number,
+    COLORS: ReturnType<typeof getBracketColors>,
   ): void {
     const played = match.played;
     const halfH = MATCH_H / 2;
