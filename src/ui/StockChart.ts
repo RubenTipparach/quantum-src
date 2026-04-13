@@ -163,7 +163,7 @@ export class StockChart {
     ctx.fillText(`${tfLabel} · ${tfCandles.length} bars`, padding.left + 4, h - padding.bottom + 16);
 
     // Market emotion gauge at bottom
-    this.drawEmotionGauge(ctx, padding.left + chartW / 2 - 60, h - padding.bottom + 8, 120, 10, marketEmotion);
+    this.drawEmotionGauge(ctx, padding.left + chartW / 2 - 60, h - padding.bottom + 8, 120, 10, marketEmotion, COLORS);
   }
 
   private drawCandles(
@@ -285,14 +285,12 @@ export class StockChart {
     }
   }
 
-  private drawEmotionGauge(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, emotion: number): void {
+  private drawEmotionGauge(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, emotion: number, COLORS: ReturnType<typeof getSkinColors>): void {
     // Gradient bar: red (fear) → gray → green (greed)
     const grad = ctx.createLinearGradient(x, 0, x + w, 0);
-    grad.addColorStop(0, '#ff2222');
-    grad.addColorStop(0.25, '#ff6644');
+    grad.addColorStop(0, COLORS.bearBody);
     grad.addColorStop(0.5, '#888888');
-    grad.addColorStop(0.75, '#88ff44');
-    grad.addColorStop(1, '#00ff00');
+    grad.addColorStop(1, COLORS.bullBody);
 
     ctx.fillStyle = grad;
     ctx.globalAlpha = 0.5;
@@ -300,16 +298,15 @@ export class StockChart {
     ctx.globalAlpha = 1;
 
     // Indicator line
-    const pos = ((emotion + 1) / 2) * w; // emotion: -1 to 1
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x + pos - 1, y - 1, 3, h + 2);
+    ctx.fillStyle = COLORS.gridText;
+    ctx.fillRect(x + ((emotion + 1) / 2) * w - 1, y - 1, 3, h + 2);
 
     // Labels
     ctx.font = '12px IBM Plex Mono, Courier New';
-    ctx.fillStyle = '#ff4444';
+    ctx.fillStyle = COLORS.bearBody;
     ctx.textAlign = 'left';
     ctx.fillText('FEAR', x, y + h + 10);
-    ctx.fillStyle = '#44ff44';
+    ctx.fillStyle = COLORS.bullBody;
     ctx.textAlign = 'right';
     ctx.fillText('GREED', x + w, y + h + 10);
     ctx.textAlign = 'left';
