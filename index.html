@@ -820,6 +820,60 @@
     [data-skin="win95"] .sidebar-btn { color: #000; }
     [data-skin="win95"] #editor-header { background: var(--skin-bg-sidebar); }
 
+    /* Win95: Blue gradient title bars */
+    [data-skin="win95"] .sb-header {
+      background: linear-gradient(90deg, #000080, #1084d0);
+      color: #fff;
+      font-weight: bold;
+    }
+    [data-skin="win95"] .nm-header,
+    [data-skin="win95"] .bk-header,
+    [data-skin="win95"] .rm-header {
+      background: linear-gradient(90deg, #000080, #1084d0);
+      color: #fff;
+    }
+    [data-skin="win95"] #chart-toolbar { background: var(--skin-bg-sidebar); }
+    [data-skin="win95"] #console-header { background: var(--skin-bg-sidebar); color: #000; }
+
+    /* Win95: Most text should be plain black — no colored accents */
+    [data-skin="win95"] .sb-section h3 { color: #000; }
+    [data-skin="win95"] .stat-row { color: #000; }
+    [data-skin="win95"] .stat-row .val { color: #000; font-weight: bold; }
+    [data-skin="win95"] .stat-row .val.money { color: #000; }
+    [data-skin="win95"] .stat-row .val.energy { color: #000; }
+    [data-skin="win95"] .stat-row .val.era { color: #000; }
+    [data-skin="win95"] #ts-money { color: #000; }
+    [data-skin="win95"] #ts-credits { color: #000; }
+    [data-skin="win95"] #ts-year { color: #000; }
+    [data-skin="win95"] #ts-era { color: #000; }
+    [data-skin="win95"] #current-file-name { color: #000; }
+    [data-skin="win95"] .stock-row { color: #000; }
+    [data-skin="win95"] .stock-row .sym { color: #000; }
+    [data-skin="win95"] .news-text { color: #000; }
+    [data-skin="win95"] .news-icon { color: #000; }
+    [data-skin="win95"] .portfolio-row { color: #000; }
+    [data-skin="win95"] .portfolio-row .shares { color: #000; }
+    [data-skin="win95"] .portfolio-row .value { color: #000; font-weight: bold; }
+    [data-skin="win95"] .research-done { color: #000 !important; }
+    [data-skin="win95"] .docs-section p,
+    [data-skin="win95"] .docs-intro { color: #000; }
+    [data-skin="win95"] .docs-group h4 { color: #000; font-weight: bold; }
+    [data-skin="win95"] .docs-fn > p { color: #000; }
+    [data-skin="win95"] .docs-ret { color: #444; }
+    [data-skin="win95"] .docs-fn > code { color: #000; }
+    [data-skin="win95"] .docs-section code { color: #000; background: #fff; border-color: #808080; }
+    [data-skin="win95"] .docs-toc-link span { color: #000 !important; }
+    [data-skin="win95"] .sb-tab { color: #000; }
+    [data-skin="win95"] .sb-tab.active { color: #000; border-bottom-color: #000080; }
+    [data-skin="win95"] .script-action-btn { color: #000; }
+    [data-skin="win95"] .fm-file-name { color: #000; }
+    [data-skin="win95"] #chart-controls button { color: #000; }
+    [data-skin="win95"] #stock-selector button { color: #000; }
+    /* Keep green/red ONLY for stock price changes */
+    [data-skin="win95"] .stock-row .price { color: #000; }
+    [data-skin="win95"] .stock-row .change.up { color: #008000; }
+    [data-skin="win95"] .stock-row .change.down { color: #cc0000; }
+
     /* ========== ASEPRITE SKIN EXTRAS ========== */
     [data-skin="aseprite"] .sb-logo {
       filter: none;
