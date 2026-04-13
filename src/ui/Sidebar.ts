@@ -306,17 +306,19 @@ export class Sidebar {
     };
 
     const statusIcon = (status: string) => {
-      if (status === 'completed') return '<span style="color:#44dd88;">&#10003;</span>';
-      if (status === 'ready') return '<span style="color:#ffcc44;">&#11088;</span>';
-      if (status === 'available') return '<span style="color:#ffcc44;">&#9679;</span>';
-      return '<span style="color:#334455;">&#9632;</span>';
+      if (status === 'completed') return '<span style="color:var(--skin-money);">&#10003;</span>';
+      if (status === 'ready') return '<span style="color:var(--skin-energy);">&#11088;</span>';
+      if (status === 'available') return '<span style="color:var(--skin-energy);">&#9679;</span>';
+      return '<span style="color:var(--skin-text-dim);">&#9632;</span>';
     };
 
     const statusColor = (status: string) => {
-      if (status === 'completed') return '#44dd88';
-      if (status === 'ready') return '#ffcc44';
-      if (status === 'available') return '#ffcc44';
-      return '#667788';
+      const cs = getComputedStyle(document.documentElement);
+      const v = (n: string, f: string) => cs.getPropertyValue(n).trim() || f;
+      if (status === 'completed') return v('--skin-money', '#44dd88');
+      if (status === 'ready') return v('--skin-energy', '#ffcc44');
+      if (status === 'available') return v('--skin-energy', '#ffcc44');
+      return v('--skin-text-dim', '#667788');
     };
 
     let html = '';
@@ -342,14 +344,14 @@ export class Sidebar {
         }
         if (m.minYear) reqs.push(`Year ${m.minYear}+`);
         const prereqText = reqs.length > 0
-          ? `<div style="color:#7799aa;font-size:9px;margin-top:2px;">Requires: ${reqs.join(', ')}</div>`
+          ? `<div style="color:var(--skin-text-dim);font-size:9px;margin-top:2px;">Requires: ${reqs.join(', ')}</div>`
           : '';
-        const rewardText = `<span style="color:#aa88ff;font-size:10px;">${m.researchCredits} cr</span>`
-          + (m.moneyReward > 0 ? ` <span style="color:#44dd88;font-size:10px;">+$${m.moneyReward.toLocaleString()}</span>` : '');
+        const rewardText = `<span style="color:var(--skin-credits);font-size:10px;">${m.researchCredits} cr</span>`
+          + (m.moneyReward > 0 ? ` <span style="color:var(--skin-money);font-size:10px;">+$${m.moneyReward.toLocaleString()}</span>` : '');
 
         const isClickable = status === 'available' || status === 'ready';
         const cursor = isClickable ? 'cursor:pointer;' : '';
-        const hoverBg = isClickable ? 'background:#1a2a3a;' : '';
+        const hoverBg = isClickable ? 'background:var(--skin-bg-btn);' : '';
         const opacity = status === 'locked' ? 'opacity:0.7;' : '';
 
         html += `<div class="mission-tree-node${isClickable ? ' mission-tree-clickable' : ''}" data-mission-id="${m.id}"
@@ -377,9 +379,9 @@ export class Sidebar {
 
     modal.innerHTML = `
       <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
-        <div style="background:#0c1824;border:1px solid #2a4a6a;border-radius:8px;max-width:500px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <div style="background:var(--skin-bg-modal);border:1px solid var(--skin-border);border-radius:var(--skin-radius);max-width:500px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #1a2a3a;">
-            <span style="color:#aa88ff;font-weight:bold;font-size:14px;">Mission Tree</span>
+            <span style="color:var(--skin-credits);font-weight:bold;font-size:14px;">Mission Tree</span>
             <span style="color:var(--skin-text-mid);font-size:11px;">${completedCount} / ${missions.length} complete</span>
             <button id="close-mission-tree" style="background:none;border:none;color:var(--skin-text-mid);font-size:20px;cursor:pointer;padding:0 4px;">&times;</button>
           </div>
@@ -502,27 +504,27 @@ export class Sidebar {
 
     // Line numbers
     const lineCount = mission.savedCode!.split('\n').length;
-    const lineNums = Array.from({ length: lineCount }, (_, i) => `<span style="color:#334455;">${i + 1}</span>`).join('\n');
+    const lineNums = Array.from({ length: lineCount }, (_, i) => `<span style="color:var(--skin-text-dim);">${i + 1}</span>`).join('\n');
 
     modal.innerHTML = `
       <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
-        <div style="background:#0c1824;border:1px solid #2a4a6a;border-radius:8px;max-width:600px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <div style="background:var(--skin-bg-modal);border:1px solid var(--skin-border);border-radius:var(--skin-radius);max-width:600px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #1a2a3a;">
             <div>
-              <span style="color:#44dd88;font-weight:bold;font-size:13px;">&#10003; ${mission.name}</span>
-              <span style="color:#556677;font-size:11px;margin-left:8px;">Saved Code</span>
+              <span style="color:var(--skin-money);font-weight:bold;font-size:13px;">&#10003; ${mission.name}</span>
+              <span style="color:var(--skin-text-dim);font-size:11px;margin-left:8px;">Saved Code</span>
             </div>
             <button class="mc-close" style="background:none;border:none;color:var(--skin-text-mid);font-size:20px;cursor:pointer;padding:0 4px;">&times;</button>
           </div>
           <div style="padding:12px 16px;overflow-y:auto;flex:1;">
-            <div style="background:#060e18;border:1px solid #1a2a3a;border-radius:4px;padding:12px;display:flex;gap:12px;font-family:monospace;font-size:12px;line-height:1.5;overflow-x:auto;">
+            <div style="background:#060e18;border:1px solid #1a2a3a;border-radius:var(--skin-radius);padding:12px;display:flex;gap:12px;font-family:monospace;font-size:12px;line-height:1.5;overflow-x:auto;">
               <pre style="margin:0;text-align:right;user-select:none;min-width:20px;">${lineNums}</pre>
               <pre style="margin:0;flex:1;white-space:pre-wrap;word-break:break-all;">${highlighted}</pre>
             </div>
           </div>
           <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;">
-            <button class="mc-load" style="background:#1a3a2a;border:1px solid #44dd8855;color:#44dd88;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load into Editor</button>
-            <button class="mc-close" style="background:#1a2a3a;border:1px solid #2a4a6a;color:var(--skin-text-mid);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Close</button>
+            <button class="mc-load" style="background:var(--skin-bg-btn);border:1px solid var(--skin-money);color:var(--skin-money);padding:6px 14px;border-radius:var(--skin-radius);cursor:pointer;font-size:12px;box-shadow:var(--skin-bevel);">Load into Editor</button>
+            <button class="mc-close" style="background:var(--skin-bg-btn);border:1px solid var(--skin-border);color:var(--skin-text-mid);padding:6px 14px;border-radius:var(--skin-radius);cursor:pointer;font-size:12px;">Close</button>
           </div>
         </div>
       </div>
@@ -558,33 +560,33 @@ export class Sidebar {
 
     const starterHighlighted = this.highlightJS(mission.starterCode);
     const starterLines = mission.starterCode.split('\n');
-    const starterLineNums = starterLines.map((_, i) => `<span style="color:#334455;">${i + 1}</span>`).join('\n');
+    const starterLineNums = starterLines.map((_, i) => `<span style="color:var(--skin-text-dim);">${i + 1}</span>`).join('\n');
 
     let savedHighlighted = '';
     let savedLineNums = '';
     if (hasSavedCode) {
       savedHighlighted = this.highlightJS(mission.savedCode!);
       const savedLines = mission.savedCode!.split('\n');
-      savedLineNums = savedLines.map((_, i) => `<span style="color:#334455;">${i + 1}</span>`).join('\n');
+      savedLineNums = savedLines.map((_, i) => `<span style="color:var(--skin-text-dim);">${i + 1}</span>`).join('\n');
     }
 
     const codePreview = (lineNums: string, highlighted: string) => `
-      <div style="background:#060e18;border:1px solid #1a2a3a;border-radius:4px;padding:10px;display:flex;gap:10px;font-family:monospace;font-size:11px;line-height:1.5;overflow-x:auto;max-height:200px;overflow-y:auto;">
+      <div style="background:#060e18;border:1px solid #1a2a3a;border-radius:var(--skin-radius);padding:10px;display:flex;gap:10px;font-family:monospace;font-size:11px;line-height:1.5;overflow-x:auto;max-height:200px;overflow-y:auto;">
         <pre style="margin:0;text-align:right;user-select:none;min-width:16px;">${lineNums}</pre>
         <pre style="margin:0;flex:1;white-space:pre-wrap;word-break:break-all;">${highlighted}</pre>
       </div>`;
 
-    const starterTab = `<button class="lc-tab active" data-lc-tab="starter" style="background:none;border:none;border-bottom:2px solid #44dd88;color:#44dd88;padding:4px 10px;cursor:pointer;font-size:11px;">Starter Code</button>`;
+    const starterTab = `<button class="lc-tab active" data-lc-tab="starter" style="background:none;border:none;border-bottom:2px solid var(--skin-money);color:var(--skin-money);padding:4px 10px;cursor:pointer;font-size:11px;">Starter Code</button>`;
     const savedTab = hasSavedCode
-      ? `<button class="lc-tab" data-lc-tab="saved" style="background:none;border:none;border-bottom:2px solid transparent;color:#667788;padding:4px 10px;cursor:pointer;font-size:11px;">Saved Code</button>`
+      ? `<button class="lc-tab" data-lc-tab="saved" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--skin-text-dim);padding:4px 10px;cursor:pointer;font-size:11px;">Saved Code</button>`
       : '';
 
     modal.innerHTML = `
       <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
-        <div style="background:#0c1824;border:1px solid #aa88ff44;border-radius:8px;max-width:550px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <div style="background:var(--skin-bg-modal);border:1px solid var(--skin-credits);border-radius:var(--skin-radius);max-width:550px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
           <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;">
-            <div style="color:#aa88ff;font-weight:bold;font-size:13px;margin-bottom:4px;">Load Code — ${mission.name}</div>
-            <div style="color:#88aabb;font-size:11px;">This will replace whatever is currently in the editor.</div>
+            <div style="color:var(--skin-credits);font-weight:bold;font-size:13px;margin-bottom:4px;">Load Code — ${mission.name}</div>
+            <div style="color:var(--skin-text-mid);font-size:11px;">This will replace whatever is currently in the editor.</div>
           </div>
           <div style="padding:8px 16px 0;display:flex;gap:2px;border-bottom:1px solid #1a2a3a;">
             ${starterTab}${savedTab}
@@ -594,8 +596,8 @@ export class Sidebar {
             ${hasSavedCode ? `<div id="lc-preview-saved" style="display:none;">${codePreview(savedLineNums, savedHighlighted)}</div>` : ''}
           </div>
           <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;">
-            <button class="lc-cancel" style="background:#1a2a3a;border:1px solid #2a4a6a;color:var(--skin-text-mid);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
-            <button class="lc-load" style="background:#1a3a2a;border:1px solid #44dd8855;color:#44dd88;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Load into Editor</button>
+            <button class="lc-cancel" style="background:var(--skin-bg-btn);border:1px solid var(--skin-border);color:var(--skin-text-mid);padding:6px 14px;border-radius:var(--skin-radius);cursor:pointer;font-size:12px;">Cancel</button>
+            <button class="lc-load" style="background:var(--skin-bg-btn);border:1px solid var(--skin-money);color:var(--skin-money);padding:6px 14px;border-radius:var(--skin-radius);cursor:pointer;font-size:12px;box-shadow:var(--skin-bevel);">Load into Editor</button>
           </div>
         </div>
       </div>
@@ -614,7 +616,7 @@ export class Sidebar {
           const el = tb as HTMLElement;
           const isActive = el.dataset['lcTab'] === t;
           el.style.borderBottomColor = isActive ? '#44dd88' : 'transparent';
-          el.style.color = isActive ? '#44dd88' : '#667788';
+          el.style.color = isActive ? '' : '';
         });
         const starterEl = modal.querySelector('#lc-preview-starter') as HTMLElement | null;
         const savedEl = modal.querySelector('#lc-preview-saved') as HTMLElement | null;
@@ -648,14 +650,14 @@ export class Sidebar {
 
     modal.innerHTML = `
       <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;">
-        <div style="background:#0c1824;border:1px solid #aa663355;border-radius:8px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <div style="background:var(--skin-bg-modal);border:1px solid var(--skin-energy);border-radius:var(--skin-radius);max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
           <div style="padding:16px;">
-            <div style="color:#ffaa44;font-weight:bold;font-size:13px;margin-bottom:8px;">Overwrite saved code?</div>
-            <div style="color:#88aabb;font-size:12px;">This will replace the saved code snippet for <b style="color:#ccddcc;">${mission.name}</b>. This cannot be undone.</div>
+            <div style="color:var(--skin-energy);font-weight:bold;font-size:13px;margin-bottom:8px;">Overwrite saved code?</div>
+            <div style="color:var(--skin-text-mid);font-size:12px;">This will replace the saved code snippet for <b style="color:var(--skin-text-bright);">${mission.name}</b>. This cannot be undone.</div>
           </div>
           <div style="padding:10px 16px;border-top:1px solid #1a2a3a;display:flex;gap:8px;justify-content:flex-end;">
-            <button class="ow-cancel" style="background:#1a2a3a;border:1px solid #2a4a6a;color:var(--skin-text-mid);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
-            <button class="ow-confirm" style="background:#3a2a1a;border:1px solid #ffaa4455;color:#ffaa44;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Overwrite</button>
+            <button class="ow-cancel" style="background:var(--skin-bg-btn);border:1px solid var(--skin-border);color:var(--skin-text-mid);padding:6px 14px;border-radius:var(--skin-radius);cursor:pointer;font-size:12px;">Cancel</button>
+            <button class="ow-confirm" style="background:var(--skin-bg-btn);border:1px solid var(--skin-energy);color:var(--skin-energy);padding:6px 14px;border-radius:var(--skin-radius);cursor:pointer;font-size:12px;box-shadow:var(--skin-bevel);">Overwrite</button>
           </div>
         </div>
       </div>
@@ -687,7 +689,7 @@ export class Sidebar {
     // Helper to build a hoverable stock tag with tooltip
     const makeStockTag = (symbol: string) => {
       const stock = stocks.find(s => s.symbol === symbol);
-      if (!stock) return `<span style="color:#88bbaa;">${symbol}</span>`;
+      if (!stock) return `<span style="color:var(--skin-text-light);">${symbol}</span>`;
       const escaped = stock.description.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
       const sectorLabel = stock.sector.charAt(0).toUpperCase() + stock.sector.slice(1);
       return `<span class="stock-tag" data-tooltip="${stock.name}\n${sectorLabel} sector\n\n${escaped}">${symbol}</span>`;
@@ -706,7 +708,7 @@ export class Sidebar {
           : '\u{1F3E2}';
         const impactSign = isBullish ? '+' : '';
         const impactPct = (ev.impact * 100).toFixed(2);
-        const impactColor = isBullish ? '#00cc66' : '#dd3333';
+        const impactColor = isBullish ? 'var(--skin-money)' : 'var(--skin-error)';
         const statusDot = `<span style="color:${impactColor};margin-right:4px;">&#9679;</span>`;
 
         // Show which stocks are affected and by how much
@@ -725,7 +727,7 @@ export class Sidebar {
             <span style="color:${impactColor};">${impactSign}${impactPct}%/tick</span>
             <span style="color:var(--skin-text-mid);">${ev.category.toUpperCase()}</span>
             <span>${targetLabel}</span>
-            <span style="color:#ffaa22;">${isActive ? `${ev.remaining} ticks left` : 'expired'}</span>
+            <span style="color:var(--skin-energy);">${isActive ? `${ev.remaining} ticks left` : 'expired'}</span>
           </div>
           <div class="news-modal-impacts">${stockImpacts}</div>
         </div>`;
@@ -803,7 +805,7 @@ export class Sidebar {
           <div class="stat-row"><span>Year</span><span class="val" id="sb-year">1983</span></div>
           <div class="stat-row"><span>Era</span><span class="val era" id="sb-era">Dawn of Computing</span></div>
           <div class="stat-row"><span>Money</span><span class="val money" id="sb-money">$1,000</span></div>
-          <div class="stat-row"><span>Credits</span><span class="val" id="sb-credits" style="color:#aa88ff;">0</span></div>
+          <div class="stat-row"><span>Credits</span><span class="val" id="sb-credits" style="color:var(--skin-credits);">0</span></div>
           <div class="stat-row"><span>Energy</span><span class="val energy" id="sb-energy">100 / 100 kWh</span></div>
           <div class="stat-row"><span>Compute</span><span class="val" id="sb-compute">CPU x1</span></div>
           <div class="stat-row"><span>RAM</span><span class="val" id="sb-ram">640KB</span></div>
@@ -811,7 +813,7 @@ export class Sidebar {
 
         <div class="sb-section">
           <h3>Missions</h3>
-          <button class="sidebar-btn" id="btn-mission-tree" style="margin-bottom:6px;text-align:center;background:#0a1220;border-color:#aa88ff55;color:#aa88ff;">
+          <button class="sidebar-btn" id="btn-mission-tree" style="margin-bottom:6px;text-align:center;border-color:var(--skin-credits);color:var(--skin-credits);">
             View Mission Tree
           </button>
           <div id="sb-missions"></div>
@@ -831,15 +833,15 @@ export class Sidebar {
 
         <div class="sb-section">
           <h3>News Feed</h3>
-          <button class="sidebar-btn" id="btn-news-modal" style="margin-bottom:6px;text-align:center;background:#0a1220;border-color:#2a4a6a;color:#6688ff;">
+          <button class="sidebar-btn" id="btn-news-modal" style="margin-bottom:6px;text-align:center;border-color:var(--skin-info);color:var(--skin-info);">
             View All News & Market Impact
           </button>
-          <div id="sb-news"><div class="stat-row" style="color:#334455;">No news yet...</div></div>
+          <div id="sb-news"><div class="stat-row" style="color:var(--skin-text-dim);">No news yet...</div></div>
         </div>
 
         <div class="sb-section">
           <h3>Portfolio</h3>
-          <div id="sb-portfolio"><div class="stat-row" style="color:#334455;">No holdings</div></div>
+          <div id="sb-portfolio"><div class="stat-row" style="color:var(--skin-text-dim);">No holdings</div></div>
         </div>
       </div>
 
@@ -853,7 +855,7 @@ export class Sidebar {
       <div class="sb-tab-content" id="stab-research" style="display:none;">
         <div class="sb-section">
           <h3>Research Tree</h3>
-          <button class="sidebar-btn" id="btn-view-tree" style="margin-bottom:8px;text-align:center;background:#0a1220;border-color:#2244aa;color:#6688ff;">
+          <button class="sidebar-btn" id="btn-view-tree" style="margin-bottom:8px;text-align:center;border-color:var(--skin-info);color:var(--skin-info);">
             View Full Tree
           </button>
           <div id="sb-research"></div>
@@ -866,16 +868,16 @@ export class Sidebar {
 
           <div class="docs-toc" style="margin-bottom:12px;">
             <div style="color:var(--skin-text-mid);font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Contents</div>
-            <a class="docs-toc-link" href="#docs-sys"><span style="color:#88ccaa;">sys</span><span style="color:#445566;">System status &amp; hardware info</span></a>
-            <a class="docs-toc-link" href="#docs-market"><span style="color:#88ccaa;">market</span><span style="color:#445566;">Stock trading &amp; news feed</span></a>
-            <a class="docs-toc-link" href="#docs-sports"><span style="color:#88ccaa;">sports</span><span style="color:#445566;">League betting &amp; brackets</span></a>
-            <a class="docs-toc-link" href="#docs-seti" id="toc-seti"><span>seti</span><span style="color:#445566;">Deep space scanning</span></a>
-            <a class="docs-toc-link" href="#docs-output"><span style="color:#88ccaa;">output</span><span style="color:#445566;">Print to terminal</span></a>
-            <a class="docs-toc-link" href="#docs-tickers"><span style="color:#88ccaa;">tickers</span><span style="color:#445566;">Stock symbol reference</span></a>
-            <a class="docs-toc-link" href="#docs-leagues"><span style="color:#88ccaa;">leagues</span><span style="color:#445566;">League ID reference</span></a>
+            <a class="docs-toc-link" href="#docs-sys"><span style="color:var(--skin-text-light);">sys</span><span style="color:var(--skin-text-dim);">System status &amp; hardware info</span></a>
+            <a class="docs-toc-link" href="#docs-market"><span style="color:var(--skin-text-light);">market</span><span style="color:var(--skin-text-dim);">Stock trading &amp; news feed</span></a>
+            <a class="docs-toc-link" href="#docs-sports"><span style="color:var(--skin-text-light);">sports</span><span style="color:var(--skin-text-dim);">League betting &amp; brackets</span></a>
+            <a class="docs-toc-link" href="#docs-seti" id="toc-seti"><span>seti</span><span style="color:var(--skin-text-dim);">Deep space scanning</span></a>
+            <a class="docs-toc-link" href="#docs-output"><span style="color:var(--skin-text-light);">output</span><span style="color:var(--skin-text-dim);">Print to terminal</span></a>
+            <a class="docs-toc-link" href="#docs-tickers"><span style="color:var(--skin-text-light);">tickers</span><span style="color:var(--skin-text-dim);">Stock symbol reference</span></a>
+            <a class="docs-toc-link" href="#docs-leagues"><span style="color:var(--skin-text-light);">leagues</span><span style="color:var(--skin-text-dim);">League ID reference</span></a>
           </div>
 
-          <button id="docs-back-top" style="display:none;position:sticky;bottom:8px;left:50%;transform:translateX(-50%);z-index:50;background:#0c1824ee;border:1px solid var(--skin-border);color:var(--skin-text-mid);padding:4px 14px;border-radius:12px;cursor:pointer;font-size:10px;backdrop-filter:blur(4px);">&#9650; Back to top</button>
+          <button id="docs-back-top" style="display:none;position:sticky;bottom:8px;left:50%;transform:translateX(-50%);z-index:50;background:var(--skin-bg-modal);border:1px solid var(--skin-border);color:var(--skin-text-mid);padding:4px 14px;border-radius:12px;cursor:pointer;font-size:10px;backdrop-filter:blur(4px);opacity:0.95;">&#9650; Back to top</button>
 
           <div class="docs-group" id="docs-sys">
             <h4>sys — System Status</h4>
@@ -949,7 +951,7 @@ sports.wager("football", 100, {
 
           <div class="docs-group" id="docs-seti">
             <h4 id="docs-seti-title">seti — Deep Space Scanning</h4>
-            <div id="docs-seti-lock" style="display:none;color:#778899;font-size:11px;padding:6px 8px;border:1px dashed #445566;border-radius:4px;margin-bottom:6px;">
+            <div id="docs-seti-lock" style="display:none;color:#778899;font-size:11px;padding:6px 8px;border:1px dashed #445566;border-radius:var(--skin-radius);margin-bottom:6px;">
               &#128274; Locked — Requires <b>SETI Program</b> research
             </div>
             <div id="docs-seti-content">
@@ -1211,7 +1213,13 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       const skinAccent = sv('--skin-accent', '#00ff88');
       const skinTextMid = sv('--skin-text-mid', '#668877');
       const skinTextDim = sv('--skin-text-dim', '#446655');
+      const skinTextLight = sv('--skin-text-light', '#88bbaa');
       const skinBorder = sv('--skin-border', '#1a3a2a');
+      const skinBgBtn = sv('--skin-bg-btn', '#0a1a12');
+      const skinBgBtnHover = sv('--skin-bg-btn-hover', '#0f2a1a');
+      const skinCredits = sv('--skin-credits', '#aa88ff');
+      const skinInfo = sv('--skin-info', '#6688ff');
+      const skinMoney = sv('--skin-money', '#44dd88');
       ctx.fillStyle = sv('--skin-bg-modal', '#0a0a18'); ctx.fillRect(0, 0, totalW, totalH);
 
       // Era labels
@@ -1219,7 +1227,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       for (const era of eraOrder) {
         const group = eraGroups.get(era) ?? [];
         if (group.length === 0) continue;
-        ctx.fillStyle = '#334466';
+        ctx.fillStyle = skinInfo;
         ctx.fillText((eraLabels[era] ?? era).toUpperCase(), padX, ey + 12);
         const maxY = Math.max(...group.map(n => (positions.get(n.id)?.y ?? 0) + nodeH));
         ey = maxY + eraGap;
@@ -1241,21 +1249,21 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       for (const node of nodes) {
         const pos = positions.get(node.id); if (!pos) continue;
         const isSelected = node.id === selectedId;
-        ctx.fillStyle = node.researched ? '#0a2a18' : node.unlocked ? '#0a1a22' : '#0a0a12';
+        ctx.fillStyle = node.researched ? skinBgBtnHover : node.unlocked ? skinBgBtn : skinBgBtn;
         ctx.strokeStyle = isSelected ? '#ffffff' : node.researched ? skinAccent : node.unlocked ? skinTextMid : skinBorder;
         ctx.lineWidth = isSelected ? 2.5 : 1.5;
         ctx.beginPath(); ctx.roundRect(pos.x, pos.y, nodeW, nodeH, 4); ctx.fill(); ctx.stroke();
         ctx.font = '16px sans-serif';
-        ctx.fillStyle = node.researched ? skinAccent : node.unlocked ? skinTextMid : skinTextDim;
+        ctx.fillStyle = node.researched ? skinAccent : node.unlocked ? skinTextLight : skinTextDim;
         ctx.fillText(node.icon, pos.x + 6, pos.y + 18);
         ctx.font = 'bold 12px IBM Plex Mono, Courier New';
         ctx.fillText(node.name, pos.x + 26, pos.y + 16, nodeW - 34);
         ctx.font = '12px IBM Plex Mono, Courier New';
-        if (node.researched) { ctx.fillStyle = '#006633'; ctx.fillText('[DONE]', pos.x + 8, pos.y + 32); }
+        if (node.researched) { ctx.fillStyle = skinMoney; ctx.fillText('[DONE]', pos.x + 8, pos.y + 32); }
         else if (node.unlocked) {
-          ctx.fillStyle = '#aa88ff'; ctx.fillText(`${node.creditsCost} credits`, pos.x + 8, pos.y + 32);
-          ctx.fillStyle = '#6688ff'; ctx.fillText(`+${node.yearAdvance}yr`, pos.x + 100, pos.y + 32);
-        } else { ctx.fillStyle = '#222233'; ctx.fillText('[LOCKED]', pos.x + 8, pos.y + 32); }
+          ctx.fillStyle = skinCredits; ctx.fillText(`${node.creditsCost} credits`, pos.x + 8, pos.y + 32);
+          ctx.fillStyle = skinInfo; ctx.fillText(`+${node.yearAdvance}yr`, pos.x + 100, pos.y + 32);
+        } else { ctx.fillStyle = skinTextDim; ctx.fillText('[LOCKED]', pos.x + 8, pos.y + 32); }
         ctx.fillStyle = node.researched ? skinTextMid : node.unlocked ? skinTextDim : skinBorder;
         ctx.font = '12px IBM Plex Mono, Courier New';
         const desc = node.description.length > 30 ? node.description.slice(0, 28) + '...' : node.description;
@@ -1297,7 +1305,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
         ${prereqNames.length > 0 ? `
           <div class="rm-d-label">Prerequisites</div>
           ${prereqNames.map(p => `<div class="rm-d-prereq">${p}</div>`).join('')}
-        ` : '<div class="rm-d-label" style="color:#336655;">No prerequisites</div>'}
+        ` : '<div class="rm-d-label" style="color:var(--skin-text-dim);">No prerequisites</div>'}
         ${unlockBtn}
       </div>`;
 
@@ -1393,7 +1401,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     if (!el) return;
     const events = this.state.newsFeed.getRecentEvents();
     if (events.length === 0) {
-      el.innerHTML = '<div class="stat-row" style="color:#334455;">No news yet...</div>';
+      el.innerHTML = '<div class="stat-row" style="color:var(--skin-text-dim);">No news yet...</div>';
       return;
     }
     el.innerHTML = events.slice(0, 8).map(ev => {
@@ -1432,7 +1440,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       entries.push(`<div class="portfolio-row"><span><span class="stock-tag" data-tooltip="${tooltip}">${sym}</span> <span class="shares">x${qty}</span></span><span class="value">$${val.toFixed(2)}</span></div>`);
     }
     if (entries.length === 0) {
-      el.innerHTML = '<div class="stat-row" style="color:#334455;">No holdings</div>';
+      el.innerHTML = '<div class="stat-row" style="color:var(--skin-text-dim);">No holdings</div>';
     } else {
       entries.push(`<div class="portfolio-row" style="border-top:1px solid var(--skin-border);margin-top:4px;padding-top:4px;"><span style="color:var(--skin-text-mid);">Total</span><span class="value">$${totalValue.toFixed(2)}</span></div>`);
       el.innerHTML = entries.join('');
@@ -1450,31 +1458,31 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       if (sport.phase === 'betting') {
         const secs = Math.ceil(sport.phaseTicksLeft * 1.5);
         phaseText = `BETTING ${secs}s`;
-        phaseColor = '#ffaa22';
+        phaseColor = 'var(--skin-energy)';
       } else if (sport.phase === 'playing') {
         phaseText = sport.bracket[sport.currentRound]?.name ?? 'Playing';
-        phaseColor = '#00ff88';
+        phaseColor = 'var(--skin-accent)';
       } else {
         phaseText = 'COMPLETE';
-        phaseColor = '#6688ff';
+        phaseColor = 'var(--skin-info)';
       }
 
       const betStatus = sport.playerBets
         ? (sport.playerBets.totalPayout > 0
-          ? `<span style="color:#00ff88;">+$${sport.playerBets.totalPayout.toLocaleString()}</span>`
+          ? `<span style="color:var(--skin-accent);">+$${sport.playerBets.totalPayout.toLocaleString()}</span>`
           : `<span style="color:var(--skin-text-mid);">$${sport.playerBets.totalWagered.toLocaleString()} wagered</span>`)
         : (sport.phase === 'betting'
-          ? '<span style="color:#ffaa22;">No bet</span>'
-          : '<span style="color:#334455;">—</span>');
+          ? '<span style="color:var(--skin-energy);">No bet</span>'
+          : `<span style="color:var(--skin-text-dim);">—</span>`);
 
-      return `<button class="sidebar-btn sport-btn" data-sport="${sport.id}" style="border-color:#2a3a4a55;">
+      return `<button class="sidebar-btn sport-btn" data-sport="${sport.id}" style="border-color:var(--skin-border);">
         <span style="display:flex;justify-content:space-between;align-items:center;">
           <span>${sport.icon} ${sport.name} S${sport.seasonNumber}</span>
           <span style="color:${phaseColor};">${phaseText}</span>
         </span>
         <span style="display:flex;justify-content:space-between;margin-top:2px;">
           ${betStatus}
-          <span style="color:#446666;">View Bracket</span>
+          <span style="color:var(--skin-text-dim);">View Bracket</span>
         </span>
       </button>`;
     }).join('');
@@ -1495,27 +1503,27 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       const costText = m.collectCost ? ` — $${m.collectCost.toLocaleString()}` : '';
       const canAfford = !m.collectCost || s.money >= m.collectCost;
       const btnStyle = canAfford
-        ? 'border-color:#ffcc4488;background:linear-gradient(135deg,#1a2a1a,#1a3a2a);'
-        : 'border-color:#ff444444;opacity:0.7;';
+        ? 'border-color:var(--skin-energy);'
+        : 'border-color:var(--skin-error);opacity:0.7;';
       html.push(`<button class="sidebar-btn mission-collect-btn" data-id="${m.id}" style="${btnStyle}" title="${canAfford ? 'Click to collect!' : `Need $${m.collectCost!.toLocaleString()}`}">
         <span style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:#ffcc44;">&#11088; ${m.name}</span>
-          <span style="color:#44dd88;font-size:10px;font-weight:bold;">COLLECT${costText}</span>
+          <span style="color:var(--skin-energy);">&#11088; ${m.name}</span>
+          <span style="color:var(--skin-money);font-size:10px;font-weight:bold;">COLLECT${costText}</span>
         </span>
-        <span class="year-advance" style="color:#aa88ff;font-size:9px;">+${m.researchCredits} cr${m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : ''}</span>
+        <span class="year-advance" style="color:var(--skin-credits);font-size:9px;">+${m.researchCredits} cr${m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : ''}</span>
       </button>`);
     }
 
     // Available missions
     for (const m of available) {
-      html.push(`<div class="sidebar-btn mission-btn" data-id="${m.id}" title="${m.hint}" style="border-color:#aa88ff55;cursor:pointer;">
+      html.push(`<div class="sidebar-btn mission-btn" data-id="${m.id}" title="${m.hint}" style="border-color:var(--skin-credits);cursor:pointer;">
         <span style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:#aa88ff;">${m.name}</span>
-          <span class="cost" style="color:#aa88ff;">+${m.researchCredits} cr</span>
+          <span style="color:var(--skin-credits);">${m.name}</span>
+          <span class="cost" style="color:var(--skin-credits);">+${m.researchCredits} cr</span>
         </span>
         <span class="year-advance" style="color:var(--skin-text-mid);font-size:9px;">${m.description}</span>
         <span style="display:flex;justify-content:end;margin-top:3px;">
-          <button class="mission-load-starter-btn" data-id="${m.id}" style="background:none;border:1px solid #aa88ff44;color:#aa88ff;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;" title="Load starter code into editor">&#128196; Load Code</button>
+          <button class="mission-load-starter-btn" data-id="${m.id}" style="background:none;border:1px solid var(--skin-credits);color:var(--skin-credits);font-size:9px;padding:1px 6px;border-radius:var(--skin-radius);cursor:pointer;" title="Load starter code into editor">&#128196; Load Code</button>
         </span>
       </div>`);
     }
@@ -1525,11 +1533,11 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
       html.push(`<div style="margin-top:4px;">`);
       for (const m of done) {
         const hasCode = !!m.savedCode;
-        html.push(`<div class="research-done" style="color:#6644aa;display:flex;justify-content:space-between;align-items:center;">
+        html.push(`<div class="research-done" style="color:var(--skin-credits);display:flex;justify-content:space-between;align-items:center;">
           <span>[DONE] ${m.name}</span>
           <span style="display:flex;gap:4px;">
-            ${hasCode ? `<button class="mission-load-code-btn" data-id="${m.id}" style="background:none;border:1px solid #aa88ff44;color:#aa88ff;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="View saved code snippet">&#128196;</button>` : ''}
-            <button class="mission-save-code-btn" data-id="${m.id}" style="background:none;border:1px solid #44886644;color:#448866;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;" title="${hasCode ? 'Overwrite saved code with current editor' : 'Save current editor code to this mission'}">&#128190;</button>
+            ${hasCode ? `<button class="mission-load-code-btn" data-id="${m.id}" style="background:none;border:1px solid var(--skin-credits);color:var(--skin-credits);font-size:9px;padding:1px 5px;border-radius:var(--skin-radius);cursor:pointer;" title="View saved code snippet">&#128196;</button>` : ''}
+            <button class="mission-save-code-btn" data-id="${m.id}" style="background:none;border:1px solid var(--skin-text-dim);color:var(--skin-text-dim);font-size:9px;padding:1px 5px;border-radius:var(--skin-radius);cursor:pointer;" title="${hasCode ? 'Overwrite saved code with current editor' : 'Save current editor code to this mission'}">&#128190;</button>
           </span>
         </div>`);
       }
@@ -1537,7 +1545,7 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     }
 
     if (readyToCollect.length === 0 && available.length === 0 && done.length === 0) {
-      html.push('<div class="stat-row" style="color:#334455;">No missions yet</div>');
+      html.push(`<div class="stat-row" style="color:var(--skin-text-dim);">No missions yet</div>`);
     }
 
     el.innerHTML = html.join('');
@@ -1553,15 +1561,15 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     const html: string[] = [];
 
     if (available.length === 0) {
-      html.push('<div class="stat-row" style="color:#334455;">No items available</div>');
+      html.push(`<div class="stat-row" style="color:var(--skin-text-dim);">No items available</div>`);
     }
 
     for (const item of available.slice(0, 8)) { // show max 8
       const canAfford = s.money >= item.cost;
       const style = canAfford ? '' : 'opacity:0.5;pointer-events:none;';
-      html.push(`<button class="sidebar-btn shop-btn" style="${style}border-color:#44aa5555;" data-id="${item.id}" title="${item.description}"${canAfford ? '' : ' disabled'}>
+      html.push(`<button class="sidebar-btn shop-btn" style="${style}border-color:var(--skin-money);" data-id="${item.id}" title="${item.description}"${canAfford ? '' : ' disabled'}>
         ${item.name}
-        <span class="cost" style="color:#44dd88;">$${item.cost.toLocaleString()}</span>
+        <span class="cost" style="color:var(--skin-money);">$${item.cost.toLocaleString()}</span>
         <span class="year-advance" style="color:var(--skin-text-mid);font-size:9px;">${item.description}</span>
       </button>`);
     }
@@ -1585,13 +1593,13 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
         setiContent.style.display = '';
         setiLock.style.display = 'none';
         setiTitle.style.color = '';
-        if (tocSeti) tocSeti.style.color = '#88ccaa';
+        if (tocSeti) tocSeti.style.color = '';
       } else {
         setiGroup.style.opacity = '0.6';
         setiContent.style.display = 'none';
         setiLock.style.display = '';
-        setiTitle.style.color = '#667788';
-        if (tocSeti) tocSeti.style.color = '#667788';
+        setiTitle.style.color = '';
+        if (tocSeti) tocSeti.style.color = '';
       }
     }
   }
