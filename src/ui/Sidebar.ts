@@ -1070,13 +1070,8 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     document.getElementById('settings-modal')?.remove();
 
     const currentSkin = getSkin();
-    const skinOptions = SKINS.map(s =>
-      `<button class="sidebar-btn skin-option${s.id === currentSkin ? ' skin-active' : ''}"
-        data-skin-id="${s.id}"
-        style="text-align:center;${s.id === currentSkin ? 'border-color:var(--skin-accent);' : ''}">
-        <strong>${s.label}</strong>
-        <span style="display:block;font-size:11px;color:var(--skin-text-dim);margin-top:2px;">${s.description}</span>
-      </button>`
+    const skinSelectOptions = SKINS.map(s =>
+      `<option value="${s.id}"${s.id === currentSkin ? ' selected' : ''}>${s.label} — ${s.description}</option>`
     ).join('');
 
     const modal = document.createElement('div');
@@ -1087,9 +1082,15 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
         <div class="nm-header"><span>Settings</span><button class="nm-close">&times;</button></div>
         <div style="padding:16px;">
           <div style="color:var(--skin-text-mid);font-family:var(--skin-font-ui);margin-bottom:8px;font-size:13px;font-weight:bold;">Skin</div>
-          <div id="skin-options" style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px;">
-            ${skinOptions}
-          </div>
+          <select id="skin-select" style="
+            width:100%;padding:8px 10px;
+            background:var(--skin-bg-btn);color:var(--skin-text);
+            border:1px solid var(--skin-border);border-radius:var(--skin-radius);
+            font-family:inherit;font-size:13px;cursor:pointer;
+            box-shadow:var(--skin-bevel);margin-bottom:16px;
+          ">
+            ${skinSelectOptions}
+          </select>
           <div style="height:1px;background:var(--skin-border);margin:12px 0;"></div>
           <div style="color:var(--skin-text-mid);font-family:var(--skin-font-ui);margin-bottom:8px;font-size:13px;font-weight:bold;">Danger Zone</div>
           <button id="btn-reset-game" class="sidebar-btn" style="background:var(--skin-bg-btn);border-color:var(--skin-error);color:var(--skin-error);text-align:center;">
@@ -1104,18 +1105,9 @@ print(data.pattern + " — " + data.note)</pre><button class="docs-insert-btn">\
     modal.querySelector('.nm-backdrop')!.addEventListener('click', () => modal.remove());
     modal.querySelector('.nm-close')!.addEventListener('click', () => modal.remove());
 
-    modal.querySelector('#skin-options')!.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest('.skin-option') as HTMLElement | null;
-      if (!btn) return;
-      const skinId = btn.dataset['skinId'] as string;
+    (modal.querySelector('#skin-select') as HTMLSelectElement).addEventListener('change', (e) => {
+      const skinId = (e.target as HTMLSelectElement).value;
       setSkin(skinId as ReturnType<typeof getSkin>);
-      // Update active state on buttons
-      modal.querySelectorAll('.skin-option').forEach(el => {
-        (el as HTMLElement).classList.remove('skin-active');
-        (el as HTMLElement).style.borderColor = '';
-      });
-      btn.classList.add('skin-active');
-      btn.style.borderColor = 'var(--skin-accent)';
     });
 
     modal.querySelector('#btn-reset-game')!.addEventListener('click', () => {
