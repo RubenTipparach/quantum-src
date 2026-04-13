@@ -1,7 +1,9 @@
 import { GameEngine } from './engine/GameEngine';
 import { GameState } from './game/GameState';
+import { loadSkin } from './ui/SkinManager';
 
 async function main() {
+  loadSkin();
   try {
     const gameState = new GameState();
     const engine = new GameEngine(gameState);

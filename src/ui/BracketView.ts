@@ -1,26 +1,30 @@
 import type { Sport, Team, PlayerBets } from '../game/sports/SportsLeague';
 
-const COLORS = {
-  bg: '#0a0a18',
-  line: '#1a3a2a',
-  lineActive: '#00ff88',
-  text: '#88bbaa',
-  textDim: '#334455',
-  textBright: '#00ff88',
-  matchBg: '#0a1a15',
-  matchBorder: '#1a3a2a',
-  matchPlayed: '#0f2a1a',
-  matchPlayedBorder: '#336655',
-  winner: '#00ff88',
-  loser: '#553333',
-  betCorrect: '#00ff88',
-  betWrong: '#ff4444',
-  betPending: '#ffaa22',
-  score: '#aaccbb',
-  seed: '#446666',
-  phaseLabel: '#6688ff',
-  highlight: '#1a4a2a',
-};
+function getBracketColors() {
+  const s = getComputedStyle(document.documentElement);
+  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
+  return {
+    bg: v('--skin-bg-modal', '#0a0a18'),
+    line: v('--skin-border', '#1a3a2a'),
+    lineActive: v('--skin-accent', '#00ff88'),
+    text: v('--skin-text-light', '#88bbaa'),
+    textDim: v('--skin-text-very-dim', '#334455'),
+    textBright: v('--skin-accent', '#00ff88'),
+    matchBg: v('--skin-bg-code', '#0a1a15'),
+    matchBorder: v('--skin-border', '#1a3a2a'),
+    matchPlayed: v('--skin-bg-btn-hover', '#0f2a1a'),
+    matchPlayedBorder: v('--skin-text-mid', '#336655'),
+    winner: v('--skin-accent', '#00ff88'),
+    loser: '#553333',
+    betCorrect: v('--skin-accent', '#00ff88'),
+    betWrong: v('--skin-error', '#ff4444'),
+    betPending: v('--skin-energy', '#ffaa22'),
+    score: v('--skin-text-bright', '#aaccbb'),
+    seed: v('--skin-text-dim', '#446666'),
+    phaseLabel: v('--skin-info', '#6688ff'),
+    highlight: v('--skin-bg-btn-active', '#1a4a2a'),
+  };
+}
 
 const MATCH_W = 170;
 const MATCH_H = 52;
@@ -121,11 +125,11 @@ export class BracketView {
       const totalSecs = Math.ceil(sport.phaseTicksLeft * 1.5);
       const min = Math.floor(totalSecs / 60);
       const sec = totalSecs % 60;
-      el.innerHTML = `<span style="color:#ffaa22;">BETTING OPEN</span> — <span style="color:#fff;">${min}:${String(sec).padStart(2, '0')}</span>`;
+      el.innerHTML = `<span style="color:var(--skin-energy);">BETTING OPEN</span> — <span style="color:var(--skin-text-bright);">${min}:${String(sec).padStart(2, '0')}</span>`;
     } else if (sport.phase === 'playing') {
       const roundSecs = Math.ceil(sport.roundTicksLeft * 1.5);
       const roundName = sport.bracket[sport.currentRound]?.name ?? '';
-      el.innerHTML = `<span style="color:#00ff88;">${roundName}</span> — <span style="color:#fff;">${roundSecs}s</span>`;
+      el.innerHTML = `<span style="color:var(--skin-accent);">${roundName}</span> — <span style="color:var(--skin-text-bright);">${roundSecs}s</span>`;
     } else {
       const secs = Math.ceil(sport.phaseTicksLeft * 1.5);
       el.innerHTML = `<span style="color:#6688ff;">SEASON COMPLETE</span> — next in ${secs}s`;
@@ -133,11 +137,12 @@ export class BracketView {
   }
 
   private static updateFooter(modal: HTMLElement, sport: Sport): void {
+    const COLORS = getBracketColors();
     const el = modal.querySelector('#bk-footer');
     if (!el) return;
 
     if (!sport.playerBets) {
-      el.innerHTML = '<span style="color:#334455;">No bets placed this season</span>';
+      el.innerHTML = `<span style="color:${COLORS.textDim};">No bets placed this season</span>`;
       return;
     }
 
@@ -148,7 +153,7 @@ export class BracketView {
     let html = `<span class="bk-bet-label">Bets ($${b.totalWagered.toLocaleString()} wagered):</span>`;
 
     const parts = b.roundBets.map((rb, i) => {
-      if (!rb) return `<span style="color:#334455;">${roundLabels[i]}: —</span>`;
+      if (!rb) return `<span style="color:${COLORS.textDim};">${roundLabels[i]}: —</span>`;
       const depthLabel = `${rb.multiplier}x`;
       if (rb.resolved) {
         const color = rb.correct > 0 ? COLORS.betCorrect : COLORS.betWrong;
@@ -158,7 +163,7 @@ export class BracketView {
     });
     html += parts.join(' ');
     if (b.totalPayout > 0) {
-      html += `<span class="bk-payout" style="color:#00ff88;">Payout: $${b.totalPayout.toLocaleString()}</span>`;
+      html += `<span class="bk-payout" style="color:${COLORS.winner};">Payout: $${b.totalPayout.toLocaleString()}</span>`;
     }
 
     el.innerHTML = html;
@@ -201,6 +206,7 @@ export class BracketView {
   }
 
   private static draw(modal: HTMLElement, sport: Sport, teamMap: Map<string, Team>): void {
+    const COLORS = getBracketColors();
     const canvas = modal.querySelector('#bracket-canvas') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d')!;
     BracketView.hitBoxes = [];
