@@ -430,31 +430,32 @@ export class GameEngine {
     const title = count === 1 ? 'MISSION READY' : `${count} MISSIONS READY`;
     const listHtml = missions.map(m => {
       const reward = `+${m.researchCredits} cr` + (m.moneyReward > 0 ? ` +$${m.moneyReward.toLocaleString()}` : '');
-      const cost = m.collectCost ? ` <span style="color:#ff8844;">(costs $${m.collectCost.toLocaleString()})</span>` : '';
-      return `<div style="margin:4px 0;padding:4px 0;${count > 1 ? 'border-bottom:1px solid #1a2a3a22;' : ''}">
-        <div style="color:#ccddcc;font-size:12px;">${m.name}${cost}</div>
-        <div style="color:#aa88ff;font-size:10px;">${reward}</div>
+      const cost = m.collectCost ? ` <span style="color:var(--skin-energy);">(costs $${m.collectCost.toLocaleString()})</span>` : '';
+      return `<div style="margin:4px 0;padding:4px 0;${count > 1 ? 'border-bottom:1px solid var(--skin-border);' : ''}">
+        <div style="color:var(--skin-text-bright);font-size:12px;">${m.name}${cost}</div>
+        <div style="color:var(--skin-credits);font-size:10px;">${reward}</div>
       </div>`;
     }).join('');
 
     toast.innerHTML = `
       <div style="font-size:24px;margin-bottom:6px;">&#11088;</div>
-      <div style="color:#ffcc44;font-weight:bold;font-size:14px;">${title}</div>
+      <div style="color:var(--skin-energy);font-weight:bold;font-size:14px;">${title}</div>
       ${listHtml}
-      <div style="color:#668877;font-size:10px;margin-top:8px;">Collect from the Missions panel</div>
+      <div style="color:var(--skin-text-mid);font-size:10px;margin-top:8px;">Collect from the Missions panel</div>
       <button class="toast-dismiss-btn" style="
         margin-top:8px; padding:4px 16px;
-        background: none; border: 1px solid #33445566;
-        border-radius: 4px; color: #556677; font-size: 11px;
+        background: none; border: 1px solid var(--skin-border);
+        border-radius: var(--skin-radius); color: var(--skin-text-dim); font-size: 11px;
         cursor: pointer;
       ">&times; Dismiss</button>
     `;
     toast.style.cssText = `
       position: fixed; top: 18%; left: 50%; transform: translateX(-50%);
-      background: linear-gradient(135deg, #0c1824f0, #1a2a3af0);
-      border: 1px solid #ffcc4466; border-radius: 12px;
+      background: var(--skin-bg-modal);
+      border: 1px solid var(--skin-border); border-radius: var(--skin-radius);
       padding: 20px 36px; text-align: center; z-index: 10000;
       max-width: 400px; width: 90%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       animation: toast-in 0.4s ease-out;
       pointer-events: auto;
     `;
@@ -484,16 +485,16 @@ export class GameEngine {
       const reward = `+${mission.researchCredits} cr` + (mission.moneyReward > 0 ? ` +$${mission.moneyReward.toLocaleString()}` : '');
       completionToast.innerHTML = `
         <div style="font-size:24px;margin-bottom:6px;">&#127881;</div>
-        <div style="color:#44dd88;font-weight:bold;font-size:14px;">MISSION COMPLETE!</div>
-        <div style="color:#ccddcc;font-size:12px;margin:4px 0;">${mission.name}</div>
-        <div style="color:#aa88ff;font-size:11px;">${reward}</div>
+        <div style="color:var(--skin-money);font-weight:bold;font-size:14px;">MISSION COMPLETE!</div>
+        <div style="color:var(--skin-text-bright);font-size:12px;margin:4px 0;">${mission.name}</div>
+        <div style="color:var(--skin-credits);font-size:11px;">${reward}</div>
       `;
       completionToast.style.cssText = `
         position: fixed; top: 18%; left: 50%; transform: translateX(-50%);
-        background: linear-gradient(135deg, #0c1824ee, #1a2a3aee);
-        border: 1px solid #44dd8866; border-radius: 12px;
+        background: var(--skin-bg-modal);
+        border: 1px solid var(--skin-accent); border-radius: var(--skin-radius);
         padding: 20px 36px; text-align: center; z-index: 10000;
-        box-shadow: 0 0 30px #44dd8833, 0 8px 32px rgba(0,0,0,0.5);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
         animation: toast-in 0.4s ease-out, toast-out 0.5s ease-in 2.5s forwards;
         pointer-events: none;
       `;

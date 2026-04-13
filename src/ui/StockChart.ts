@@ -7,25 +7,26 @@ export type ChartMode = 'candle' | 'line';
 const MIN_BAR_WIDTH = 2;
 const BAR_GAP = 1;
 
-const GREEN = '#00cc66';
-const RED = '#dd3333';
-
-const COLORS = {
-  bg: '#050510',
-  grid: '#0a1515',
-  gridText: '#334455',
-  bullBody: GREEN,
-  bullWick: '#00aa55',
-  bearBody: RED,
-  bearWick: '#aa2222',
-  volume: '#1a3a2a',
-  volumeHigh: '#2a5a3a',
-  priceLabel: '#00ff88',
-  symbolLabel: '#668877',
-  timeframeLabel: '#446666',
-  line: '#00ff88',
-  lineFill: 'rgba(0, 255, 136, 0.08)',
-};
+function getSkinColors() {
+  const s = getComputedStyle(document.documentElement);
+  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
+  return {
+    bg: v('--skin-chart-bg', '#050510'),
+    grid: v('--skin-chart-grid', '#0a1515'),
+    gridText: v('--skin-chart-grid-text', '#334455'),
+    bullBody: v('--skin-chart-bull', '#00cc66'),
+    bullWick: v('--skin-chart-bull-wick', '#00aa55'),
+    bearBody: v('--skin-chart-bear', '#dd3333'),
+    bearWick: v('--skin-chart-bear-wick', '#aa2222'),
+    volume: v('--skin-chart-volume', '#1a3a2a'),
+    volumeHigh: v('--skin-chart-volume-hi', '#2a5a3a'),
+    priceLabel: v('--skin-accent', '#00ff88'),
+    symbolLabel: v('--skin-text-mid', '#668877'),
+    timeframeLabel: v('--skin-text-dim', '#446666'),
+    line: v('--skin-chart-line', '#00ff88'),
+    lineFill: v('--skin-chart-line-fill', 'rgba(0, 255, 136, 0.08)'),
+  };
+}
 
 export class StockChart {
   private canvas: HTMLCanvasElement;
@@ -46,6 +47,7 @@ export class StockChart {
 
   render(stock: Stock, marketEmotion: number): void {
     this.time += 0.016; // ~60fps
+    const COLORS = getSkinColors();
 
     const canvas = this.canvas;
     const ctx = this.ctx;
@@ -101,12 +103,12 @@ export class StockChart {
     const priceToY = (p: number) => padding.top + chartH - ((p - minP) / adjRange) * chartH;
 
     // Grid
-    this.drawGrid(ctx, padding.left, padding.top, chartW, chartH, minP, maxP, padding.left + chartW + 5);
+    this.drawGrid(ctx, padding.left, padding.top, chartW, chartH, minP, maxP, padding.left + chartW + 5, COLORS);
 
     if (this.mode === 'candle') {
-      this.drawCandles(ctx, stock, tfCandles, priceToY, maxVol, volumeH, padding, chartW, h);
+      this.drawCandles(ctx, stock, tfCandles, priceToY, maxVol, volumeH, padding, chartW, h, COLORS);
     } else {
-      this.drawLine(ctx, stock, tfCandles, priceToY, maxVol, volumeH, padding, chartW, h);
+      this.drawLine(ctx, stock, tfCandles, priceToY, maxVol, volumeH, padding, chartW, h, COLORS);
     }
 
     // Current price dashed line
@@ -121,7 +123,7 @@ export class StockChart {
     ctx.setLineDash([]);
 
     // Current price badge on right axis
-    ctx.fillStyle = '#0a2a18';
+    ctx.fillStyle = COLORS.bg;
     ctx.fillRect(padding.left + chartW + 2, curY - 8, 55, 16);
     ctx.strokeStyle = COLORS.priceLabel;
     ctx.lineWidth = 0.5;
@@ -135,7 +137,7 @@ export class StockChart {
     const firstCandle = tfCandles[0]!;
     const priceChange = stock.price - firstCandle.open;
     const pctChange = (priceChange / firstCandle.open) * 100;
-    const changeColor = priceChange >= 0 ? GREEN : RED;
+    const changeColor = priceChange >= 0 ? COLORS.bullBody : COLORS.bearBody;
     const changeSign = priceChange >= 0 ? '+' : '';
 
     ctx.font = 'bold 13px IBM Plex Mono, Courier New';
@@ -170,6 +172,7 @@ export class StockChart {
     maxVol: number, volumeH: number,
     padding: { top: number; right: number; bottom: number; left: number },
     chartW: number, totalH: number,
+    COLORS: ReturnType<typeof getSkinColors>,
   ): void {
     const numCandles = candles.length;
     if (numCandles === 0) return;
@@ -215,6 +218,7 @@ export class StockChart {
     maxVol: number, volumeH: number,
     padding: { top: number; right: number; bottom: number; left: number },
     chartW: number, totalH: number,
+    COLORS: ReturnType<typeof getSkinColors>,
   ): void {
     if (candles.length < 2) return;
 
@@ -315,6 +319,7 @@ export class StockChart {
     ctx: CanvasRenderingContext2D,
     x0: number, y0: number, cw: number, ch: number,
     minP: number, maxP: number, labelX: number,
+    COLORS: ReturnType<typeof getSkinColors>,
   ): void {
     const gridLines = 3;
     const range = maxP - minP || 1;
